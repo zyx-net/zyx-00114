@@ -176,6 +176,77 @@ node scripts/export-log.js <文档ID>
 - **CSV 导出**：筛选结果可导出为 CSV 文件，中文兼容（带 BOM），可直接用 Excel 打开；CSV 额外包含「快照ID」列。
 - **动作全覆盖**：导出的记录里包含草稿保存、提交、发布、撤回、快照恢复、快照冲突拦截、快照删除等所有动作。
 
+### 6.6 快照审计回放（导出 → 导入核对 → 只读回放）
+
+新增专门的「**审计回放**」标签页，解决「修订日志能导出却没法在仓库里重新导入核对」的问题。
+
+**6.6.1 修订日志独立导入（非全量数据导入）**
+
+- 入口：「审计回放」标签 → 选择之前导出的修订日志 JSON 文件（可以是数组，也可以是含 `revisionLogs`/`logs` 字段的对象）。
+- **操作者身份必填**：导入时必须明确操作人（审批员身份），未带操作者身份直接返回 `OPERATOR_REQUIRED`，陌生人返回 `PERMISSION_DENIED`。
+- **导入批次记录**：每次导入产生独立的批次 ID，记录导入人、导入时间、成功/冲突/无效数量、冲突详情。
+- **导入日志带追溯标记**：通过独立接口导入的日志会打上 `_importBatchId` 和 `_imported: true` 标记，可按批次查询来源，不会和仓库原生日志混淆。
+- **API 区分**：专门用 `POST /api/revision-log/import` 接口，与「修订日志」页的全量数据导入 `POST /api/import` 区分开。
+
+**6.6.2 冲突处理（不静默覆盖、不串线）**
+
+重复导入同一批日志时，系统会自动检测冲突，返回 `202 Accepted`，明确列出每条冲突：
+- **DUPLICATE_ID**：日志 ID 已存在；
+- **DUPLICATE_SIGNATURE**：ID 不同，但「文档+动作+操作人+时间戳」四要素完全相同（签名冲突）。
+
+冲突不会被静默覆盖或串线，需要审批员选择策略手动二次处理：
+| 策略 | 说明 |
+|---|---|
+| `skip` | 跳过所有冲突，保持仓库现有日志不变（默认） |
+| `overwrite` | 用导入的日志**覆盖**仓库中冲突的条目 |
+| `force_new_id` | 为冲突日志重新生成 UUID，强制作为新条目插入（保留原有 + 新增两条） |
+
+**6.6.3 审计回放（只读、按时间顺序、区分操作者）**
+
+- **权限门槛**：只有审批员可执行回放；编辑员/陌生人调用 API 会被 `403 PERMISSION_DENIED` 拒绝。
+- **三种来源**：
+  1. 从某个导入批次批量回放（核对导入结果）；
+  2. 对某文档的全部日志进行回放审计；
+  3. 手动输入日志 ID 列表（逗号分隔）精确回放。
+- **回放内容**：按时间顺序列出日志条目，展示动作、操作人、文档、修订ID/草稿ID/快照ID、动作详情等；回放产生独立的**回放记录**，不同操作者的回放记录用独立 ID + `playbackBy` 字段明确区分，不会串线。
+- **快照权限集成**：回放中若遇到快照相关日志，会同步检查快照对**回放操作者**的可见性并标记 `snapshotAccessible`：
+  - 草稿 owner → `true`，可看正文/理由/创建人；
+  - 非 owner 编辑员 → `false`，仅可看摘要；
+  - 审批员（canViewAllDrafts）→ `true`，可看完整详情。
+- **回放记录持久化**：回放记录存放在 `data/db.json` 的 `playbackRecords` 字段，服务重启后仍可查询；回放记录查看同样有权限（回放创建人 + 审批员可看明细，其他人看摘要）。
+
+**6.6.4 快照读取权限边界（硬边界）**
+
+快照详情的访问权限从「软边界」升级为「硬边界」：
+- 未传 `operator`（匿名）→ **正文/理由/创建人全部脱敏**，仅返回 `id/draftId/documentId/baselineVersionNumber/createdAt + _redacted: true`；
+- 传了 `operator` 但**不是草稿 owner**（也不是审批员）→ 同样脱敏；
+- 审批员角色 `canViewAllDrafts=true` → 可跨用户看所有快照详情，用于审计核对；
+- 快照恢复/删除仍然只允许 owner 操作（审批员也不能动别人的快照），权限与草稿修改一致。
+
+### 6.7 服务重启后一致
+
+导入批次信息、回放记录、快照可见性判断均持久化到 `data/db.json`：
+- `importedLogs[]`：所有导入批次，含导入人、数量统计、冲突列表、重导入策略记录；
+- `playbackRecords[]`：所有回放审计记录，含回放人、摘要明细、快照权限标记；
+- 使用原子写入（`.tmp` → rename），断电/重启不会损坏数据；
+- 重启后重新读取上述字段，导入结果、回放链、快照权限判断结果完全一致。
+
+命令行也支持审计回放相关操作：
+
+```bash
+# 查看所有导入批次
+node scripts/import-log.js --list
+
+# 导入日志文件（仅审批员可操作）
+node scripts/import-log.js logs.json 李审批 --source "备份恢复"
+
+# 导入并处理冲突（overwrite/force_new_id）
+node scripts/import-log.js logs.json 李审批 --strategy overwrite
+
+# 按批次执行审计回放（仅审批员）
+node scripts/import-log.js --playback <batchId> 李审批
+```
+
 ---
 
 ## 7. API 速览（含草稿快照）
@@ -196,8 +267,18 @@ POST   /api/snapshots/:snapshotId/restore# 恢复快照到草稿（403=权限不
 DELETE /api/snapshots/:snapshotId        # 删除单条快照（仅 owner 可操作）
 
 # 数据导入导出
-GET    /api/export                       # 导出全部数据（documents/versions/revisions/drafts/draftSnapshots/logs/archives）
+GET    /api/export                       # 导出全部数据（documents/versions/revisions/drafts/draftSnapshots/logs/archives/importedLogs/playbackRecords）
 POST   /api/import                       # 导入数据（按 ID 去重，已有数据不覆盖）
+
+# 修订日志独立导入 + 审计回放
+POST   /api/revision-log/import                 # 独立导入修订日志（仅审批员，需操作人）
+GET    /api/revision-log/imported               # 查询所有导入批次（?importer=xx&since=xx）
+GET    /api/revision-log/imported/:batchId      # 查询单批次详情
+GET    /api/revision-log/imported/:batchId/logs # 查询该批次实际导入的日志
+POST   /api/revision-log/imported/:batchId/reimport # 冲突重导入（仅审批员，strategy=skip/overwrite/force_new_id）
+POST   /api/revision-log/playback               # 审计回放（仅审批员，logIds+operator+notes）
+GET    /api/revision-log/playback-records       # 查询回放记录（?playbackBy=xx&since=xx）
+GET    /api/revision-log/playback-records/:recordId  # 单条回放记录（?viewer=xx 控制脱敏）
 ```
 
 快照恢复的响应说明：
@@ -228,9 +309,13 @@ node test/delivery.js
 - 快照读取权限：非 owner 只能看到脱敏后的快照（无内容/理由/创建人），owner 可看完整快照
 - 导出再导入：完整数据导出为 JSON，导入按 ID 去重不覆盖已有数据，不同操作人的草稿和快照不串线
 - 重启后导入结果仍正确
+- 修订日志**独立导入**：`POST /api/revision-log/import`，需审批员身份，未带操作者被拒绝；重复导入同一批日志返回 `202 + conflicts[]`，三种冲突策略（skip/overwrite/force_new_id）可选
+- **审计回放**：审批员对日志按时间顺序只读回放，回放记录区分不同操作者；回放中集成快照权限检查（snapshotAccessible）
+- **快照读取硬边界**：未传 `operator` 或非草稿 owner 时，正文、理由、创建人全部脱敏（`_redacted: true`）；审批员 canViewAllDrafts 可跨用户查看
+- **重启一致性**：导入批次（importedLogs）、回放记录（playbackRecords）持久化至 db.json，重启后读取结果与权限判断完全一致
 - 权限边界（编辑员不能发布、审批员不能改别人草稿）验证通过
 - 修订日志多维度筛选与 CSV 导出验证通过
-- 前端入口可见性（草稿箱标签页、筛选控件、CSV 导出按钮、冲突警告区域、快照列表）验证通过
+- 前端入口可见性（草稿箱标签页、筛选控件、CSV 导出按钮、冲突警告区域、快照列表、**审计回放标签页及所有子控件**）验证通过
 
 ---
 
@@ -245,7 +330,8 @@ zyx-00114/
 │   └── sample-doc.txt        # 仓库内置样例文档
 ├── scripts/
 │   ├── import-sample.js      # 命令行导入样例
-│   └── export-log.js         # 命令行导出修订日志
+│   ├── export-log.js         # 命令行导出修订日志
+│   └── import-log.js         # 命令行：修订日志导入 / 查看批次 / 审计回放
 ├── lib/
 │   ├── store.js              # JSON 持久化，原子写入
 │   ├── document.js           # 文档导入、版本查询
@@ -253,7 +339,8 @@ zyx-00114/
 │   ├── revision.js           # 修订申请、理由校验、无效变更检测、从草稿提交、基线冲突检测
 │   ├── archive.js            # 审批发布、撤回、归档、一致性校验、日志筛选、CSV 导出
 │   ├── draft.js              # 草稿箱：保存、读取、更新、删除、冲突检测
-│   └── auth.js               # 权限模块：角色定义、权限校验
+│   ├── auth.js               # 权限模块：角色定义、权限校验
+│   └── audit-playback.js     # 审计回放：日志独立导入、冲突检测、重导入、只读回放
 ├── routes/
 │   └── api.js                # RESTful API
 ├── public/                   # 前端（纯静态）

@@ -1,277 +1,374 @@
 {
   "documents": {
-    "2b893be4-27bc-40bf-be06-2f360d7db527": {
-      "id": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "title": "交付筛选验证文档",
-      "currentVersionId": "e1cb0e4e-6066-4d5f-96f1-6799a7005563",
+    "88984f6c-ca7a-4214-905a-45b8ab4ed5bb": {
+      "id": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "title": "回放21测试文档",
+      "currentVersionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.430Z"
-    },
-    "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa": {
-      "id": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "title": "HTTP快照专属文档",
-      "currentVersionId": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
-      "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.603Z"
+      "createdAt": "2026-06-16T21:32:46.047Z"
     }
   },
   "versions": {
-    "aabb5cb8-3fca-46fb-a314-9913e5945fc0": {
-      "id": "aabb5cb8-3fca-46fb-a314-9913e5945fc0",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
+    "4ba1775d-0c07-458a-8b6f-1e7f3011f815": {
+      "id": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
       "versionNumber": "1.0",
-      "content": "初始内容",
+      "content": "初始",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.430Z"
-    },
-    "e1cb0e4e-6066-4d5f-96f1-6799a7005563": {
-      "id": "e1cb0e4e-6066-4d5f-96f1-6799a7005563",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "versionNumber": "1.1",
-      "content": "修改后内容",
-      "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.449Z"
-    },
-    "950972fe-53b0-4fe2-b8b6-826c927cda4f": {
-      "id": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "versionNumber": "1.0",
-      "content": "HTTP快照初始",
-      "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.603Z"
+      "createdAt": "2026-06-16T21:32:46.047Z"
     }
   },
-  "revisions": {
-    "cbc85003-5d93-4c20-b446-0ad9c985e131": {
-      "id": "cbc85003-5d93-4c20-b446-0ad9c985e131",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "oldVersionId": "aabb5cb8-3fca-46fb-a314-9913e5945fc0",
-      "newVersionId": "e1cb0e4e-6066-4d5f-96f1-6799a7005563",
-      "oldVersionNumber": "1.0",
-      "newVersionNumber": "1.1",
-      "reason": "交付筛选测试",
-      "diff": {
-        "hunks": [
-          {
-            "oldStart": 1,
-            "newStart": 1,
-            "lines": [
-              {
-                "type": "removed",
-                "content": "初始内容",
-                "oldLine": 1
-              },
-              {
-                "type": "added",
-                "content": "修改后内容",
-                "newLine": 1
-              }
-            ]
-          }
-        ],
-        "summary": {
-          "added": 1,
-          "removed": 1,
-          "unchanged": 0
-        },
-        "hasChanges": true,
-        "oldLineCount": 1,
-        "newLineCount": 1
-      },
-      "status": "published",
-      "submittedBy": "张编辑",
-      "submittedAt": "2026-06-16T20:30:41.449Z",
-      "approvedBy": "李审批",
-      "approvedAt": "2026-06-16T20:30:41.480Z",
-      "publishedAt": "2026-06-16T20:30:41.480Z",
-      "withdrawnAt": null,
-      "baselineVersionId": "aabb5cb8-3fca-46fb-a314-9913e5945fc0"
-    }
-  },
+  "revisions": {},
   "revisionLogs": [
     {
-      "id": "5adaab04-5cce-4b25-8dd2-7e975074422c",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
+      "id": "fc8e35b8-96d2-4d1f-af7f-027928faa894",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
       "action": "import",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.430Z",
+      "timestamp": "2026-06-16T21:32:46.047Z",
       "detail": {
-        "versionId": "aabb5cb8-3fca-46fb-a314-9913e5945fc0",
+        "versionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
         "versionNumber": "1.0"
       }
     },
     {
-      "id": "f0b5dab7-1c4b-48ed-901e-37ea27eb3dd1",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "revisionId": "cbc85003-5d93-4c20-b446-0ad9c985e131",
-      "action": "submit",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.449Z",
-      "detail": {
-        "from": "1.0",
-        "to": "1.1",
-        "reason": "交付筛选测试",
-        "baselineVersion": "1.0"
-      }
-    },
-    {
-      "id": "ac968639-8764-483f-862b-a6ce2ea9540b",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "revisionId": "cbc85003-5d93-4c20-b446-0ad9c985e131",
-      "action": "publish",
-      "operator": "李审批",
-      "timestamp": "2026-06-16T20:30:41.480Z",
-      "detail": {
-        "from": "1.0",
-        "to": "1.1",
-        "reason": "交付筛选测试"
-      }
-    },
-    {
-      "id": "09a125d2-8d08-4a70-8074-3188a9cb94ed",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "draftId": "1dbf5437-3a04-4482-aaaf-ecebbdb1e99f",
+      "id": "cfbbb3e9-51bb-49a2-a0b1-7aa9db520aa3",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
       "action": "draft_save",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.485Z",
-      "detail": {
-        "baselineVersion": "1.1",
-        "isNew": true
-      }
-    },
-    {
-      "id": "5448f95f-8493-43ae-aedd-cfb3c0ebf802",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "action": "import",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.603Z",
-      "detail": {
-        "versionId": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
-        "versionNumber": "1.0"
-      }
-    },
-    {
-      "id": "c8b78a66-a40f-43be-83d4-d142641857e5",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "action": "draft_save",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.607Z",
+      "timestamp": "2026-06-16T21:32:46.049Z",
       "detail": {
         "baselineVersion": "1.0",
         "isNew": true
       }
     },
     {
-      "id": "9658cd04-86e0-496e-8e2c-8baa4ce81f72",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
+      "id": "5d87706c-4738-40d2-a35c-8ec64dc8c209",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
       "action": "draft_save",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.616Z",
+      "timestamp": "2026-06-16T21:32:46.052Z",
       "detail": {
         "baselineVersion": "1.0"
       }
     },
     {
-      "id": "e2a85533-1d01-4d4b-a011-ea944b483bab",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "snapshotId": "9b5764f2-066f-4547-84cd-4da915cd7ba0",
-      "action": "draft_snapshot_delete",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.633Z",
-      "detail": {
-        "baselineVersion": "1.0",
-        "snapshotId": "9b5764f2-066f-4547-84cd-4da915cd7ba0"
-      }
-    },
-    {
-      "id": "3d1347f0-2bb8-4bb5-95c1-68ec92625895",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
+      "id": "3a7bed92-a534-44c8-983b-78320613deaf",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
       "action": "draft_save",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.652Z",
+      "timestamp": "2026-06-16T21:32:46.054Z",
       "detail": {
         "baselineVersion": "1.0"
       }
     },
     {
-      "id": "11bef3b6-c120-4bb1-88f5-b9dc339f1d9a",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "snapshotId": "9726d330-680e-46a0-8b56-300adf5861dc",
-      "action": "draft_snapshot_restore",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T20:30:41.662Z",
+      "id": "07a34116-19d3-4dff-8344-be7ba2b5aa7e",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "draftId": "285bc5a9-cdd1-404b-a13c-926815d9e734",
+      "action": "draft_save",
+      "operator": "李编辑",
+      "timestamp": "2026-06-16T21:32:46.056Z",
       "detail": {
         "baselineVersion": "1.0",
-        "snapshotId": "9726d330-680e-46a0-8b56-300adf5861dc",
-        "snapshotCreatedAt": "2026-06-16T20:30:41.652Z"
+        "isNew": true
       }
     }
   ],
-  "archives": [
-    {
-      "id": "f05afec6-7b3c-4bd1-bc5b-122a97f755b4",
-      "revisionId": "cbc85003-5d93-4c20-b446-0ad9c985e131",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "versionId": "aabb5cb8-3fca-46fb-a314-9913e5945fc0",
-      "versionNumber": "1.0",
-      "reason": "交付筛选测试",
-      "archivedAt": "2026-06-16T20:30:41.480Z"
-    }
-  ],
+  "archives": [],
   "drafts": {
-    "1dbf5437-3a04-4482-aaaf-ecebbdb1e99f": {
-      "id": "1dbf5437-3a04-4482-aaaf-ecebbdb1e99f",
-      "documentId": "2b893be4-27bc-40bf-be06-2f360d7db527",
-      "baselineVersionId": "e1cb0e4e-6066-4d5f-96f1-6799a7005563",
-      "baselineVersionNumber": "1.1",
-      "content": "草稿内容",
-      "reason": "交付筛选草稿",
+    "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6": {
+      "id": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "baselineVersionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
+      "baselineVersionNumber": "1.0",
+      "content": "张编辑草稿v3",
+      "reason": "理由v3",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.485Z",
-      "updatedAt": "2026-06-16T20:30:41.485Z",
+      "createdAt": "2026-06-16T21:32:46.049Z",
+      "updatedAt": "2026-06-16T21:32:46.054Z",
       "status": "draft"
     },
-    "2ffbcc20-c4e8-4976-9175-ffd441ad5b85": {
-      "id": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "baselineVersionId": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
+    "285bc5a9-cdd1-404b-a13c-926815d9e734": {
+      "id": "285bc5a9-cdd1-404b-a13c-926815d9e734",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "baselineVersionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
       "baselineVersionNumber": "1.0",
-      "content": "交付快照草稿 B",
-      "reason": "交付快照理由 B",
-      "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.607Z",
-      "updatedAt": "2026-06-16T20:30:41.662Z",
+      "content": "李编辑草稿",
+      "reason": "李理由",
+      "createdBy": "李编辑",
+      "createdAt": "2026-06-16T21:32:46.056Z",
+      "updatedAt": "2026-06-16T21:32:46.056Z",
       "status": "draft"
     }
   },
   "draftSnapshots": {
-    "9726d330-680e-46a0-8b56-300adf5861dc": {
-      "id": "9726d330-680e-46a0-8b56-300adf5861dc",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "content": "交付快照草稿 B",
-      "reason": "交付快照理由 B",
-      "baselineVersionId": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
+    "57144141-a8f0-4cba-82bc-1d0bec75435b": {
+      "id": "57144141-a8f0-4cba-82bc-1d0bec75435b",
+      "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "content": "张编辑草稿v1",
+      "reason": "理由v1",
+      "baselineVersionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
       "baselineVersionNumber": "1.0",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.652Z"
+      "createdAt": "2026-06-16T21:32:46.052Z"
     },
-    "3fa221c0-b174-4520-a255-f35c201b1fc7": {
-      "id": "3fa221c0-b174-4520-a255-f35c201b1fc7",
-      "draftId": "2ffbcc20-c4e8-4976-9175-ffd441ad5b85",
-      "documentId": "7c2277ea-c3c7-4fd8-9497-9e5dceeee8fa",
-      "content": "交付快照草稿 C",
-      "reason": "交付快照理由 C",
-      "baselineVersionId": "950972fe-53b0-4fe2-b8b6-826c927cda4f",
+    "7cd576b5-86e5-4703-886f-f5bfff73a977": {
+      "id": "7cd576b5-86e5-4703-886f-f5bfff73a977",
+      "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+      "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+      "content": "张编辑草稿v2",
+      "reason": "理由v2",
+      "baselineVersionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
       "baselineVersionNumber": "1.0",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T20:30:41.662Z"
+      "createdAt": "2026-06-16T21:32:46.054Z"
     }
   },
-  "users": {}
+  "users": {},
+  "importedLogs": [],
+  "playbackRecords": [
+    {
+      "id": "71b818bf-133f-420c-96bc-c0ea1e597443",
+      "playbackBy": "李审批",
+      "playbackAt": "2026-06-16T21:32:46.059Z",
+      "logCount": 5,
+      "missingCount": 0,
+      "missingIds": [],
+      "logIds": [
+        "fc8e35b8-96d2-4d1f-af7f-027928faa894",
+        "cfbbb3e9-51bb-49a2-a0b1-7aa9db520aa3",
+        "5d87706c-4738-40d2-a35c-8ec64dc8c209",
+        "3a7bed92-a534-44c8-983b-78320613deaf",
+        "07a34116-19d3-4dff-8344-be7ba2b5aa7e"
+      ],
+      "summary": {
+        "actionBreakdown": {
+          "import": 1,
+          "draft_save": 4
+        },
+        "operatorBreakdown": {
+          "张编辑": 4,
+          "李编辑": 1
+        },
+        "docBreakdown": {
+          "88984f6c-ca7a-4214-905a-45b8ab4ed5bb": 5
+        },
+        "timeRange": {
+          "start": "2026-06-16T21:32:46.047Z",
+          "end": "2026-06-16T21:32:46.056Z"
+        }
+      },
+      "items": [
+        {
+          "logId": "fc8e35b8-96d2-4d1f-af7f-027928faa894",
+          "timestamp": "2026-06-16T21:32:46.047Z",
+          "action": "import",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": null,
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "versionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
+            "versionNumber": "1.0"
+          }
+        },
+        {
+          "logId": "cfbbb3e9-51bb-49a2-a0b1-7aa9db520aa3",
+          "timestamp": "2026-06-16T21:32:46.049Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0",
+            "isNew": true
+          }
+        },
+        {
+          "logId": "5d87706c-4738-40d2-a35c-8ec64dc8c209",
+          "timestamp": "2026-06-16T21:32:46.052Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0"
+          }
+        },
+        {
+          "logId": "3a7bed92-a534-44c8-983b-78320613deaf",
+          "timestamp": "2026-06-16T21:32:46.054Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0"
+          }
+        },
+        {
+          "logId": "07a34116-19d3-4dff-8344-be7ba2b5aa7e",
+          "timestamp": "2026-06-16T21:32:46.056Z",
+          "action": "draft_save",
+          "operator": "李编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "285bc5a9-cdd1-404b-a13c-926815d9e734",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0",
+            "isNew": true
+          }
+        }
+      ],
+      "notes": "第一次回放",
+      "mode": "audit"
+    },
+    {
+      "id": "8ca07e10-5501-419b-99dc-4b39c36f68ab",
+      "playbackBy": "赵审批",
+      "playbackAt": "2026-06-16T21:32:46.062Z",
+      "logCount": 5,
+      "missingCount": 0,
+      "missingIds": [],
+      "logIds": [
+        "fc8e35b8-96d2-4d1f-af7f-027928faa894",
+        "cfbbb3e9-51bb-49a2-a0b1-7aa9db520aa3",
+        "5d87706c-4738-40d2-a35c-8ec64dc8c209",
+        "3a7bed92-a534-44c8-983b-78320613deaf",
+        "07a34116-19d3-4dff-8344-be7ba2b5aa7e"
+      ],
+      "summary": {
+        "actionBreakdown": {
+          "import": 1,
+          "draft_save": 4
+        },
+        "operatorBreakdown": {
+          "张编辑": 4,
+          "李编辑": 1
+        },
+        "docBreakdown": {
+          "88984f6c-ca7a-4214-905a-45b8ab4ed5bb": 5
+        },
+        "timeRange": {
+          "start": "2026-06-16T21:32:46.047Z",
+          "end": "2026-06-16T21:32:46.056Z"
+        }
+      },
+      "items": [
+        {
+          "logId": "fc8e35b8-96d2-4d1f-af7f-027928faa894",
+          "timestamp": "2026-06-16T21:32:46.047Z",
+          "action": "import",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": null,
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "versionId": "4ba1775d-0c07-458a-8b6f-1e7f3011f815",
+            "versionNumber": "1.0"
+          }
+        },
+        {
+          "logId": "cfbbb3e9-51bb-49a2-a0b1-7aa9db520aa3",
+          "timestamp": "2026-06-16T21:32:46.049Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0",
+            "isNew": true
+          }
+        },
+        {
+          "logId": "5d87706c-4738-40d2-a35c-8ec64dc8c209",
+          "timestamp": "2026-06-16T21:32:46.052Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0"
+          }
+        },
+        {
+          "logId": "3a7bed92-a534-44c8-983b-78320613deaf",
+          "timestamp": "2026-06-16T21:32:46.054Z",
+          "action": "draft_save",
+          "operator": "张编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "79b21dbd-8b7b-4644-8d04-a2ea3e542fd6",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0"
+          }
+        },
+        {
+          "logId": "07a34116-19d3-4dff-8344-be7ba2b5aa7e",
+          "timestamp": "2026-06-16T21:32:46.056Z",
+          "action": "draft_save",
+          "operator": "李编辑",
+          "documentId": "88984f6c-ca7a-4214-905a-45b8ab4ed5bb",
+          "documentTitle": "回放21测试文档",
+          "revisionId": null,
+          "draftId": "285bc5a9-cdd1-404b-a13c-926815d9e734",
+          "snapshotId": null,
+          "snapshotAccessible": null,
+          "snapshotDetail": null,
+          "detail": {
+            "baselineVersion": "1.0",
+            "isNew": true
+          }
+        }
+      ],
+      "notes": "第二次回放（不同人）",
+      "mode": "audit"
+    }
+  ]
 }

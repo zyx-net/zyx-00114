@@ -30,6 +30,7 @@
       <button class="tab" data-tab="diff">版本对比</button>
       <button class="tab" data-tab="archives">归档记录</button>
       <button class="tab" data-tab="log">修订日志</button>
+      <button class="tab" data-tab="audit">审计回放</button>
     </nav>
 
     <section id="tab-import" class="tab-content active">
@@ -215,6 +216,103 @@
       </div>
       <div id="logResult"></div>
       <div id="consistencyResult" class="result-area"></div>
+    </section>
+
+    <section id="tab-audit" class="tab-content">
+      <h2>🔍 快照审计回放</h2>
+
+      <div class="info-box" style="background:#f0f7ff;padding:12px;border-radius:6px;margin-bottom:16px;border-left:4px solid #4a90e2">
+        <h4 style="margin:0 0 8px 0">使用说明</h4>
+        <ul style="margin:0;padding-left:20px;color:#444;font-size:13px;line-height:1.8">
+          <li><strong>日志导入：</strong>选择之前导出的修订日志 JSON 文件导入系统，可与现有日志核对。<strong>导入时必须明确操作者身份</strong>，审批员可执行冲突重导入。</li>
+          <li><strong>冲突处理：</strong>重复导入同一批日志时，系统会自动识别冲突（ID重复或签名重复），<strong>不会静默覆盖</strong>，需手动选择策略处理。</li>
+          <li><strong>审计回放：</strong>选择日志ID按时间顺序回放（只读审计，不修改数据），回放记录会区分不同操作者。</li>
+          <li><strong>快照权限：</strong>非草稿 owner 查看快照详情时，正文、保存理由、创建人信息将被脱敏，仅审批员可查看全部。</li>
+          <li><strong>持久化：</strong>导入结果、回放记录、快照可见性均持久化到 db.json，服务重启后保持一致。</li>
+        </ul>
+      </div>
+
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="flex:1;min-width:320px">
+          <h3>📥 修订日志导入</h3>
+          <div class="form-group">
+            <label>选择日志 JSON 文件</label>
+            <label class="btn btn-secondary" style="display:inline-block;cursor:pointer;width:100%;text-align:center">
+              选择文件...
+              <input type="file" id="auditImportFile" accept=".json" style="display:none">
+            </label>
+            <div id="auditImportFileName" style="margin-top:6px;font-size:12px;color:#888">未选择文件</div>
+          </div>
+          <div class="form-group">
+            <label>导入来源说明</label>
+            <input type="text" id="auditImportSource" placeholder="如：导出备份 2024-xx-xx" style="width:100%">
+          </div>
+          <div class="form-group">
+            <label>备注（可选）</label>
+            <input type="text" id="auditImportNotes" placeholder="导入目的或备注" style="width:100%">
+          </div>
+          <button id="auditImportBtn" class="btn btn-primary">执行导入</button>
+          <div id="auditImportResult" class="result-area"></div>
+
+          <div id="auditConflictArea" style="display:none;margin-top:16px;padding:12px;border:1px solid #ffd43b;border-radius:6px;background:#fffbe6">
+            <h4 style="margin:0 0 10px 0;color:#c92a2a">⚠ 发现冲突，需要处理</h4>
+            <div id="auditConflictList" style="font-size:13px;max-height:200px;overflow:auto;margin-bottom:12px"></div>
+            <label>处理策略：</label>
+            <select id="auditConflictStrategy" style="margin-right:8px">
+              <option value="skip">skip - 跳过冲突，保持现有日志</option>
+              <option value="overwrite">overwrite - 用新日志覆盖现有冲突</option>
+              <option value="force_new_id">force_new_id - 生成新ID强制插入</option>
+            </select>
+            <button id="auditReimportBtn" class="btn btn-secondary">执行重导入</button>
+            <div id="auditReimportResult" class="result-area"></div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:320px">
+          <h3>📼 审计回放</h3>
+          <div class="form-group">
+            <label>选择日志来源</label>
+            <select id="auditPlaybackSource" style="width:100%">
+              <option value="batch">从导入批次选择</option>
+              <option value="doc">从某文档全部日志</option>
+              <option value="manual">手动输入日志ID（逗号分隔）</option>
+            </select>
+          </div>
+          <div class="form-group" id="auditBatchSelectWrap">
+            <label>选择导入批次</label>
+            <select id="auditBatchSelect" style="width:100%"><option value="">-- 请先导入日志 --</option></select>
+          </div>
+          <div class="form-group" id="auditPlayDocWrap" style="display:none">
+            <label>选择文档</label>
+            <select id="auditPlayDocSelect" style="width:100%"></select>
+          </div>
+          <div class="form-group" id="auditManualWrap" style="display:none">
+            <label>日志ID（逗号分隔）</label>
+            <input type="text" id="auditManualIds" placeholder="id1,id2,id3..." style="width:100%">
+          </div>
+          <div class="form-group">
+            <label>回放备注</label>
+            <input type="text" id="auditPlayNotes" placeholder="本次回放目的" style="width:100%">
+          </div>
+          <button id="auditPlaybackBtn" class="btn btn-primary">执行审计回放</button>
+          <div id="auditPlaybackResult" class="result-area"></div>
+        </div>
+      </div>
+
+      <hr style="margin:24px 0;border:0;border-top:1px solid #eee">
+
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="flex:1;min-width:320px">
+          <h3>📦 导入批次记录</h3>
+          <button id="auditRefreshBatches" class="btn btn-secondary">刷新列表</button>
+          <div id="auditBatchesList" style="margin-top:12px"></div>
+        </div>
+        <div style="flex:1;min-width:320px">
+          <h3>📝 回放记录（审计链）</h3>
+          <button id="auditRefreshPlaybacks" class="btn btn-secondary">刷新列表</button>
+          <div id="auditPlaybacksList" style="margin-top:12px"></div>
+        </div>
+      </div>
     </section>
   </main>
 

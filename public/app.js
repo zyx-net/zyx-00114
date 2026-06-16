@@ -49,10 +49,15 @@
       tab.classList.add('active');
       const target = $('#tab-' + tab.dataset.tab);
       if (target) target.classList.add('active');
-      if (['revision', 'diff', 'approval', 'archives', 'log', 'drafts'].includes(tab.dataset.tab)) {
+      if (['revision', 'diff', 'approval', 'archives', 'log', 'drafts', 'audit'].includes(tab.dataset.tab)) {
         loadDocSelects();
       }
       if (tab.dataset.tab === 'drafts') loadDrafts();
+      if (tab.dataset.tab === 'audit') {
+        loadAuditDocSelect();
+        refreshAuditBatches();
+        refreshAuditPlaybacks();
+      }
     });
   });
 
@@ -796,6 +801,249 @@
     } else {
       toast('删除失败: ' + (data.message || data.error), 'error');
     }
+  }
+
+  let currentAuditBatchId = null;
+  let pendingAuditLogs = null;
+
+  async function loadAuditDocSelect() {
+    const { data } = await api('/documents');
+    const s = $('#auditPlayDocSelect');
+    if (!s) return;
+    const cur = s.value;
+    s.innerHTML = '<option value="">-- 请选择 --</option>';
+    (data || []).forEach(doc => {
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = doc.title + ' (v' + doc.currentVersionNumber + ')';
+      s.appendChild(opt);
+    });
+    if (cur) s.value = cur;
+  }
+
+  $('#auditImportFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('#auditImportFileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    pendingAuditLogs = null;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (Array.isArray(parsed)) {
+          pendingAuditLogs = parsed;
+        } else if (parsed && parsed.revisionLogs && Array.isArray(parsed.revisionLogs)) {
+          pendingAuditLogs = parsed.revisionLogs;
+        } else if (parsed && Array.isArray(parsed.logs)) {
+          pendingAuditLogs = parsed.logs;
+        } else {
+          toast('文件格式不支持：无法识别日志数组', 'error');
+        }
+      } catch (err) {
+        toast('文件解析失败: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  $('#auditImportBtn').addEventListener('click', async () => {
+    const el = $('#auditImportResult');
+    if (!pendingAuditLogs || pendingAuditLogs.length === 0) {
+      return showResult(el, '请先选择有效的日志 JSON 文件', 'error');
+    }
+    const operator = getOperator();
+    if (!operator || operator === '未知') {
+      return showResult(el, '导入被拒绝：必须明确操作者身份（填写姓名）', 'error');
+    }
+    showResult(el, '导入中...', 'info');
+    const { ok, status, data } = await api('/revision-log/import', {
+      method: 'POST',
+      body: JSON.stringify({
+        logs: pendingAuditLogs,
+        operator,
+        source: $('#auditImportSource').value || 'frontend',
+        notes: $('#auditImportNotes').value || ''
+      })
+    });
+    currentAuditBatchId = data.batchId || null;
+    if (ok) {
+      if (status === 202) {
+        showResult(el, '⚠ 部分导入：共 ' + data.totalCount + ' 条，成功 ' + data.insertedCount + ' 条，冲突 ' + data.conflictCount + ' 条（未覆盖现有日志）。请在下方选择冲突处理策略。', 'error');
+        renderAuditConflicts(data.conflicts || []);
+      } else {
+        showResult(el, '✅ 日志导入成功！批次ID: ' + shortId(data.batchId) + '，共导入 ' + data.insertedCount + ' 条日志', 'success');
+        $('#auditConflictArea').style.display = 'none';
+      }
+      toast('导入完成');
+      refreshAuditBatches();
+    } else {
+      showResult(el, '导入失败: ' + (data.message || data.error), 'error');
+      $('#auditConflictArea').style.display = 'none';
+    }
+  });
+
+  function renderAuditConflicts(conflicts) {
+    if (!conflicts || conflicts.length === 0) {
+      $('#auditConflictArea').style.display = 'none';
+      return;
+    }
+    const list = $('#auditConflictList');
+    list.innerHTML = conflicts.map(c => `
+      <div style="padding:6px 0;border-bottom:1px dashed #ffd43b">
+        <div><strong>日志ID:</strong> ${shortId(c.logId)} | <strong>原因:</strong> ${c.reason}</div>
+        ${c.existingLog ? `<div style="color:#888;font-size:12px">现有记录: ${c.existingLog.action} @ ${c.existingLog.timestamp} by ${c.existingLog.operator}</div>` : ''}
+      </div>
+    `).join('');
+    $('#auditConflictArea').style.display = 'block';
+  }
+
+  $('#auditReimportBtn').addEventListener('click', async () => {
+    if (!currentAuditBatchId) return toast('没有待处理的批次', 'error');
+    const strategy = $('#auditConflictStrategy').value;
+    const el = $('#auditReimportResult');
+    if (getRole() !== 'approver') {
+      return showResult(el, '冲突重导入被拒绝：仅审批员可执行此操作', 'error');
+    }
+    const { ok, data } = await api('/revision-log/imported/' + currentAuditBatchId + '/reimport', {
+      method: 'POST',
+      body: JSON.stringify({ strategy, operator: getOperator() })
+    });
+    if (ok) {
+      showResult(el, '重导入完成: ' + (data.message || '') + '（策略: ' + strategy + '）', 'success');
+      $('#auditConflictArea').style.display = 'none';
+      toast('重导入完成');
+    } else {
+      showResult(el, '重导入失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#auditPlaybackSource').addEventListener('change', () => {
+    const v = $('#auditPlaybackSource').value;
+    $('#auditBatchSelectWrap').style.display = v === 'batch' ? '' : 'none';
+    $('#auditPlayDocWrap').style.display = v === 'doc' ? '' : 'none';
+    $('#auditManualWrap').style.display = v === 'manual' ? '' : 'none';
+  });
+
+  $('#auditPlaybackBtn').addEventListener('click', async () => {
+    const el = $('#auditPlaybackResult');
+    const operator = getOperator();
+    if (getRole() !== 'approver') {
+      return showResult(el, '回放被拒绝：仅审批员可执行审计回放', 'error');
+    }
+    let logIds = [];
+    const source = $('#auditPlaybackSource').value;
+    if (source === 'batch') {
+      const batchId = $('#auditBatchSelect').value;
+      if (!batchId) return showResult(el, '请选择导入批次', 'error');
+      const { data } = await api('/revision-log/imported/' + batchId + '/logs');
+      logIds = (data || []).map(l => l.id);
+    } else if (source === 'doc') {
+      const docId = $('#auditPlayDocSelect').value;
+      if (!docId) return showResult(el, '请选择文档', 'error');
+      const { data } = await api('/documents/' + docId + '/revision-log');
+      logIds = (data || []).map(l => l.id);
+    } else {
+      const raw = $('#auditManualIds').value.trim();
+      if (!raw) return showResult(el, '请输入日志ID', 'error');
+      logIds = raw.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    if (logIds.length === 0) return showResult(el, '没有可回放的日志', 'error');
+    showResult(el, '回放执行中...', 'info');
+    const { ok, data } = await api('/revision-log/playback', {
+      method: 'POST',
+      body: JSON.stringify({
+        logIds,
+        operator,
+        notes: $('#auditPlayNotes').value || '',
+        mode: 'audit'
+      })
+    });
+    if (ok) {
+      let summary = `✅ 回放完成！记录ID: ${shortId(data.recordId)}\n`;
+      summary += `回放日志: ${data.logCount} 条，未找到: ${data.missingCount} 条\n`;
+      if (data.summary && data.summary.actionBreakdown) {
+        summary += '动作分布: ' + Object.entries(data.summary.actionBreakdown).map(([k, v]) => k + '×' + v).join(', ') + '\n';
+      }
+      if (data.summary && data.summary.operatorBreakdown) {
+        summary += '操作人分布: ' + Object.entries(data.summary.operatorBreakdown).map(([k, v]) => k + '×' + v).join(', ') + '\n';
+      }
+      if (data.items && data.items.length > 0) {
+        summary += '\n回放明细（前5条快照权限验证）:\n';
+        data.items.slice(0, 5).forEach(item => {
+          if (item.snapshotId) {
+            summary += `  - 快照${shortId(item.snapshotId)}: 访问${item.snapshotAccessible ? '✅已授权' : '⛔已拦截（非草稿owner）'}\n`;
+          }
+        });
+      }
+      showResult(el, summary, 'success');
+      refreshAuditPlaybacks();
+    } else {
+      showResult(el, '回放失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#auditRefreshBatches').addEventListener('click', refreshAuditBatches);
+  $('#auditRefreshPlaybacks').addEventListener('click', refreshAuditPlaybacks);
+
+  async function refreshAuditBatches() {
+    const { data } = await api('/revision-log/imported');
+    const sel = $('#auditBatchSelect');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- 选择导入批次 --</option>';
+      (data || []).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.importBatchId;
+        opt.textContent = `${fmtTime(b.importedAt)} | by ${b.importedBy} | 成功${b.insertedCount} 冲突${b.conflictCount}`;
+        sel.appendChild(opt);
+      });
+    }
+    const listEl = $('#auditBatchesList');
+    if (listEl) {
+      if (!data || data.length === 0) {
+        listEl.innerHTML = '<p style="color:#999">暂无导入批次</p>';
+      } else {
+        listEl.innerHTML = (data || []).map(b => `
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;margin-bottom:8px">
+            <div><strong>${fmtTime(b.importedAt)}</strong> by <strong>${escapeHtml(b.importedBy)}</strong></div>
+            <div style="font-size:12px;color:#666;margin-top:4px">
+              批次 ${shortId(b.importBatchId)} | 总计 ${b.totalCount} | ✅ ${b.insertedCount} | ⚠ ${b.conflictCount} | ❌ ${b.invalidCount}
+              ${b.source ? ` | 来源: ${escapeHtml(b.source)}` : ''}
+            </div>
+            ${b.notes ? `<div style="font-size:12px;color:#888;margin-top:2px">备注: ${escapeHtml(b.notes)}</div>` : ''}
+            ${b.insertedCount > 0 ? `<div style="font-size:11px;color:#2f9e44;margin-top:2px">此批次日志可用于审计回放核对</div>` : ''}
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  async function refreshAuditPlaybacks() {
+    const { data } = await api('/revision-log/playback-records');
+    const listEl = $('#auditPlaybacksList');
+    if (!listEl) return;
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<p style="color:#999">暂无回放记录</p>';
+      return;
+    }
+    listEl.innerHTML = (data || []).map(r => {
+      const actions = r.summary && r.summary.actionBreakdown
+        ? Object.entries(r.summary.actionBreakdown).map(([k, v]) => k + '×' + v).join(', ')
+        : '-';
+      const operators = r.summary && r.summary.operatorBreakdown
+        ? Object.entries(r.summary.operatorBreakdown).map(([k, v]) => k + '×' + v).join(', ')
+        : '-';
+      return `
+        <div style="padding:10px;border:1px solid #e7f5ff;border-radius:6px;margin-bottom:8px;background:#f8f9fa">
+          <div><strong>${fmtTime(r.playbackAt)}</strong> by <strong>${escapeHtml(r.playbackBy)}</strong></div>
+          <div style="font-size:12px;color:#666;margin-top:4px">
+            记录 ${shortId(r.id)} | 回放 ${r.logCount} 条日志 | 缺失 ${r.missingCount} 条
+          </div>
+          <div style="font-size:12px;color:#495057;margin-top:2px">动作: ${escapeHtml(actions)}</div>
+          <div style="font-size:12px;color:#495057">操作人: ${escapeHtml(operators)}</div>
+          ${r.summary && r.summary.timeRange ? `<div style="font-size:11px;color:#888;margin-top:2px">时间范围: ${fmtTime(r.summary.timeRange.start)} ~ ${fmtTime(r.summary.timeRange.end)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
   }
 
   loadDocuments();

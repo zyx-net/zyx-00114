@@ -6,6 +6,7 @@ const archSvc = require('../lib/archive');
 const diffSvc = require('../lib/diff');
 const draftSvc = require('../lib/draft');
 const authSvc = require('../lib/auth');
+const auditSvc = require('../lib/audit-playback');
 const store = require('../lib/store');
 
 router.get('/export', (req, res) => {
@@ -285,6 +286,84 @@ router.get('/documents/:docId/revision-log/export.csv', (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="revision-log.csv"');
   res.send('\uFEFF' + csv);
+});
+
+router.post('/revision-log/import', (req, res) => {
+  const { logs, operator, source, notes } = req.body;
+  if (!logs || !Array.isArray(logs)) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '请求体必须包含 logs 数组' });
+  }
+  const result = auditSvc.importRevisionLogs(logs, operator, { source, notes });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  if (result.conflictCount > 0) {
+    return res.status(202).json({ ...result, message: '部分导入成功，存在冲突记录，请检查详情' });
+  }
+  res.status(201).json(result);
+});
+
+router.get('/revision-log/imported', (req, res) => {
+  const { importer, since } = req.query;
+  const filters = {};
+  if (importer) filters.importer = importer;
+  if (since) filters.since = since;
+  res.json(auditSvc.getImportedBatches(filters));
+});
+
+router.get('/revision-log/imported/:batchId', (req, res) => {
+  const batch = auditSvc.getImportedBatch(req.params.batchId);
+  if (!batch) return res.status(404).json({ error: 'BATCH_NOT_FOUND', message: '导入批次不存在' });
+  res.json(batch);
+});
+
+router.get('/revision-log/imported/:batchId/logs', (req, res) => {
+  const logs = auditSvc.getImportedLogsByBatch(req.params.batchId);
+  if (!logs) return res.status(404).json({ error: 'BATCH_NOT_FOUND', message: '导入批次不存在' });
+  res.json(logs);
+});
+
+router.post('/revision-log/imported/:batchId/reimport', (req, res) => {
+  const { strategy, operator } = req.body;
+  if (!strategy) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须指定冲突处理策略: skip/overwrite/force_new_id' });
+  }
+  const result = auditSvc.reimportWithStrategy(req.params.batchId, strategy, operator);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/revision-log/playback', (req, res) => {
+  const { logIds, operator, notes, mode } = req.body;
+  const result = auditSvc.playbackRevisionLogs(logIds, operator, { notes, mode });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.status(201).json(result);
+});
+
+router.get('/revision-log/playback-records', (req, res) => {
+  const { playbackBy, since } = req.query;
+  const filters = {};
+  if (playbackBy) filters.playbackBy = playbackBy;
+  if (since) filters.since = since;
+  res.json(auditSvc.getPlaybackRecords(filters));
+});
+
+router.get('/revision-log/playback-records/:recordId', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const record = auditSvc.getPlaybackRecord(req.params.recordId, viewer);
+  if (!record) return res.status(404).json({ error: 'RECORD_NOT_FOUND', message: '回放记录不存在' });
+  res.json(record);
 });
 
 module.exports = router;
