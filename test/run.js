@@ -3,6 +3,8 @@ const docSvc = require('../lib/document');
 const revSvc = require('../lib/revision');
 const archSvc = require('../lib/archive');
 const diffSvc = require('../lib/diff');
+const draftSvc = require('../lib/draft');
+const authSvc = require('../lib/auth');
 
 let passed = 0;
 let failed = 0;
@@ -97,10 +99,14 @@ function run() {
   const publishLogs = logsAfterDup.filter(l => l.action === 'publish' && l.revisionId === revId);
   assert(publishLogs.length === 1, '历史中只有1条发布记录，未多写');
 
-  section('9. 失败链路：提交人与批准人不能是同一角色');
+  section('9. 失败链路：提交人与批准人不能是同一角色，且编辑员不能审批');
   const rev2 = revSvc.createRevision(docId, '第一章 总则\n第一条 本制度适用全体员工及外部合作人员。\n第二条 违规者将受处罚。', '新增处罚条款', '张编辑');
-  const samePerson = archSvc.approveAndPublish(rev2.revision.id, '张编辑');
-  assert(samePerson.error === 'SAME_ROLE', '同一人审批被拒绝：SAME_ROLE');
+  const editorApprove = archSvc.approveAndPublish(rev2.revision.id, '张编辑');
+  assert(editorApprove.error === 'PERMISSION_DENIED', '编辑员没有审批权限，被拒绝：PERMISSION_DENIED');
+
+  const approverSubmit = revSvc.createRevision(docId, '审批员自己提交的内容', '审批员自审自测', '李审批');
+  const samePersonApprove = archSvc.approveAndPublish(approverSubmit.revision.id, '李审批');
+  assert(samePersonApprove.error === 'SAME_ROLE', '审批员也不能审批自己提交的修订：SAME_ROLE');
 
   const diffPerson = archSvc.approveAndPublish(rev2.revision.id, '李审批');
   assert(diffPerson.revision !== undefined, '不同人审批通过');
@@ -150,6 +156,165 @@ function run() {
   section('15. 撤回状态不可再次撤回');
   const reWithdraw = archSvc.withdraw(rev2.revision.id, '李审批');
   assert(reWithdraw.error === 'INVALID_STATUS', '已撤回的修订不可再次撤回');
+
+  section('16. 草稿箱：保存和读取草稿');
+  const draftContent = '第一章 总则\n第一条 本制度适用全体员工及外包人员。';
+  const draftReason = '扩展到外包人员';
+  const savedDraft = draftSvc.saveDraft(docId, draftContent, draftReason, '张编辑');
+  assert(savedDraft.draft !== undefined, '草稿保存成功');
+  assert(savedDraft.draft.status === 'draft', '草稿状态为 draft');
+  assert(savedDraft.draft.createdBy === '张编辑', '草稿创建人为张编辑');
+  assert(savedDraft.draft.baselineVersionNumber === '1.1', '草稿基线版本为 1.1');
+  assert(savedDraft.isNew === true, '首次保存标记为新草稿');
+
+  const gotDraft = draftSvc.getDraft(savedDraft.draft.id);
+  assert(gotDraft !== null, '可以通过 ID 读取草稿');
+  assert(gotDraft.content === draftContent, '草稿内容正确');
+  assert(gotDraft.reason === draftReason, '草稿理由正确');
+
+  const userDrafts = draftSvc.getDraftsByUser('张编辑');
+  assert(userDrafts.length >= 1, '按用户查询草稿列表有结果');
+
+  const docDrafts = draftSvc.getDraftsByDoc(docId);
+  assert(docDrafts.length >= 1, '按文档查询草稿列表有结果');
+
+  section('17. 草稿箱：更新草稿和二次保存幂等');
+  const updatedContent = '第一章 总则\n第一条 本制度适用全体员工、外包人员及实习生。';
+  const updated = draftSvc.updateDraft(savedDraft.draft.id, updatedContent, '更新理由', '张编辑');
+  assert(updated.draft !== undefined, '草稿更新成功');
+  assert(updated.draft.content === updatedContent, '草稿内容已更新');
+
+  const secondSave = draftSvc.saveDraft(docId, '新内容', '新理由', '张编辑');
+  assert(secondSave.isNew === false, '同一用户同一文档第二次保存会更新现有草稿，不新建');
+  assert(secondSave.draft.id === savedDraft.draft.id, '草稿 ID 保持不变');
+
+  section('18. 草稿箱：权限校验 - 不能修改/删除别人的草稿');
+  const updateOther = draftSvc.updateDraft(savedDraft.draft.id, '试图篡改', '', '李审批');
+  assert(updateOther.error === 'PERMISSION_DENIED', '审批员不能修改编辑员的草稿');
+
+  const deleteOther = draftSvc.deleteDraft(savedDraft.draft.id, '李审批');
+  assert(deleteOther.error === 'PERMISSION_DENIED', '审批员不能删除编辑员的草稿');
+
+  const ownDelete = draftSvc.deleteDraft(savedDraft.draft.id, '张编辑');
+  assert(ownDelete.success === true, '草稿创建者可以删除自己的草稿');
+
+  section('19. 草稿箱：重启后草稿仍然存在（持久化验证）');
+  const newDraft = draftSvc.saveDraft(docId, '重启测试内容', '重启测试理由', '张编辑');
+  const draftId = newDraft.draft.id;
+
+  delete require.cache[require.resolve('../lib/store.js')];
+  delete require.cache[require.resolve('../lib/draft.js')];
+
+  const storeReloaded = require('../lib/store');
+  const draftSvcReloaded = require('../lib/draft');
+
+  const draftAfterReload = draftSvcReloaded.getDraft(draftId);
+  assert(draftAfterReload !== null, '重启后草稿仍然存在（持久化成功）');
+  assert(draftAfterReload.content === '重启测试内容', '重启后草稿内容正确');
+  assert(draftAfterReload.reason === '重启测试理由', '重启后草稿理由正确');
+  assert(draftAfterReload.status === 'draft', '重启后草稿状态正确');
+
+  section('20. 基线版本冲突检测');
+  const draftForConflict = draftSvc.saveDraft(docId, '冲突测试内容', '冲突测试', '张编辑');
+  const conflictDraftId = draftForConflict.draft.id;
+
+  const conflictCheck1 = draftSvc.checkBaselineConflict(conflictDraftId);
+  assert(conflictCheck1.hasConflict === false, '初始状态下基线版本无冲突');
+
+  const anotherRev = revSvc.createRevision(docId, '别人改的内容', '别人提交的修订', '王编辑');
+  assert(anotherRev.revision !== undefined, '另一个人提交了修订');
+  const anotherApprove = archSvc.approveAndPublish(anotherRev.revision.id, '李审批');
+  assert(anotherApprove.revision !== undefined, '另一条修订被发布，文档版本推进');
+
+  const conflictCheck2 = draftSvc.checkBaselineConflict(conflictDraftId);
+  assert(conflictCheck2.hasConflict === true, '别人发布后，旧草稿检测出基线版本冲突');
+  assert(conflictCheck2.baselineVersion !== conflictCheck2.currentVersion, '冲突检测返回了不同的基线版本和当前版本');
+
+  section('21. 从草稿提交修订 - 无冲突场景');
+  const freshDraft = draftSvc.saveDraft(docId, '新鲜草稿内容', '新鲜草稿理由', '赵编辑');
+  const freshDraftId = freshDraft.draft.id;
+
+  const submittedFromDraft = revSvc.submitRevisionFromDraft(freshDraftId, '赵编辑');
+  assert(submittedFromDraft.revision !== undefined, '从草稿提交修订成功');
+  assert(submittedFromDraft.revision.status === 'submitted', '提交后修订状态为 submitted');
+  assert(submittedFromDraft.draft.status === 'submitted', '草稿状态变为 submitted');
+  assert(submittedFromDraft.revision.fromDraftId === freshDraftId, '修订记录了来源草稿 ID');
+
+  section('22. 从草稿提交修订 - 冲突拦截场景');
+  const conflictDraft2 = draftSvc.saveDraft(docId, '冲突草稿2内容', '冲突测试2', '王编辑');
+  const conflictDraft2Id = conflictDraft2.draft.id;
+
+  const thirdRev = revSvc.createRevision(docId, '第三方改的内容', '第三方修订', '张编辑');
+  archSvc.approveAndPublish(thirdRev.revision.id, '李审批');
+
+  const conflictSubmit = revSvc.submitRevisionFromDraft(conflictDraft2Id, '王编辑');
+  assert(conflictSubmit.error === 'BASELINE_CONFLICT', '基线版本冲突时提交被拦截');
+  assert(conflictSubmit.detail && conflictSubmit.detail.baselineVersion, '冲突错误返回了基线版本信息');
+  assert(conflictSubmit.detail && conflictSubmit.detail.currentVersion, '冲突错误返回了当前版本信息');
+
+  section('23. 权限校验：提交人不能发布（编辑员角色）');
+  const editorRev = revSvc.createRevision(docId, '编辑员提交的内容', '编辑员提交', '张编辑');
+  const editorPublish = archSvc.approveAndPublish(editorRev.revision.id, '张编辑');
+  assert(editorPublish.error === 'PERMISSION_DENIED', '编辑员没有发布权限，被拒绝');
+
+  const fakeEditor = '无名编辑';
+  const fakePublish = archSvc.approveAndPublish(editorRev.revision.id, fakeEditor);
+  assert(fakePublish.error === 'PERMISSION_DENIED', '非审批员角色没有发布权限');
+
+  section('24. 权限校验：审批员可以提交修订（不限于编辑）');
+  const approverSubmitTest = revSvc.createRevision(docId, '审批员提交的内容', '审批员提交', '李审批');
+  assert(approverSubmitTest.revision !== undefined, '审批员也可以提交修订');
+
+  section('25. 修订日志筛选：按操作人过滤');
+  const allLogs = archSvc.exportRevisionLog(docId);
+  assert(allLogs.length > 0, '文档有修订日志');
+
+  const zhangLogs = archSvc.exportRevisionLog(docId, { operator: '张编辑' });
+  assert(zhangLogs.every(l => l.operator === '张编辑'), '按操作人筛选后，所有记录都是张编辑的');
+  assert(zhangLogs.length < allLogs.length, '筛选后结果数量少于总数');
+
+  const liLogs = archSvc.exportRevisionLog(docId, { operator: '李审批' });
+  assert(liLogs.every(l => l.operator === '李审批'), '按操作人筛选李审批的记录正确');
+
+  section('26. 修订日志筛选：按动作/状态过滤');
+  const submitActionLogs = archSvc.exportRevisionLog(docId, { action: 'submit' });
+  assert(submitActionLogs.every(l => l.action === 'submit'), '按动作筛选 submit 正确');
+
+  const publishActionLogs = archSvc.exportRevisionLog(docId, { action: 'publish' });
+  assert(publishActionLogs.every(l => l.action === 'publish'), '按动作筛选 publish 正确');
+
+  const draftStatusLogs = archSvc.exportRevisionLog(docId, { status: 'draft' });
+  assert(draftStatusLogs.every(l => l.action === 'draft_save' || l.action === 'draft_delete'), '按状态 draft 筛选返回草稿相关动作');
+
+  section('27. CSV 导出功能');
+  const csvContent = archSvc.exportRevisionLogCSV(docId);
+  assert(csvContent.includes('时间'), 'CSV 包含表头：时间');
+  assert(csvContent.includes('操作'), 'CSV 包含表头：操作');
+  assert(csvContent.includes('操作人'), 'CSV 包含表头：操作人');
+  assert(csvContent.includes('提交修订'), 'CSV 中有"提交修订"动作记录');
+  assert(csvContent.includes('发布版本'), 'CSV 中有"发布版本"动作记录');
+  assert(csvContent.includes('保存草稿'), 'CSV 中有"保存草稿"动作记录');
+
+  const filteredCSV = archSvc.exportRevisionLogCSV(docId, { operator: '张编辑' });
+  const csvLines = filteredCSV.split('\n');
+  const dataLines = csvLines.slice(1).filter(l => l.trim() !== '');
+  assert(dataLines.every(l => l.includes('张编辑')), '筛选后的 CSV 只包含张编辑的记录');
+
+  section('28. 草稿相关动作会写入修订日志');
+  resetStore();
+  const testDoc = docSvc.importDocument('日志测试文档', '初始内容', '张编辑');
+  const testDocId = testDoc.document.id;
+
+  const testDraft = draftSvc.saveDraft(testDocId, '草稿内容', '草稿理由', '张编辑');
+  const testDraftId = testDraft.draft.id;
+
+  draftSvc.updateDraft(testDraftId, '更新后内容', '更新理由', '张编辑');
+  draftSvc.deleteDraft(testDraftId, '张编辑');
+
+  const draftLogs2 = archSvc.exportRevisionLog(testDocId, { status: 'draft' });
+  assert(draftLogs2.some(l => l.action === 'draft_save'), '日志中有 draft_save 动作');
+  assert(draftLogs2.some(l => l.action === 'draft_delete'), '日志中有 draft_delete 动作');
+  assert(draftLogs2.some(l => l.detail && l.detail.baselineVersion), '草稿日志详情中包含基线版本信息');
 
   console.log('\n' + '='.repeat(60));
   console.log(`  测试结果：✅ ${passed} 通过  ❌ ${failed} 失败`);
