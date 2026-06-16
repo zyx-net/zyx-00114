@@ -1,0 +1,14 @@
+{
+  "name": "doc-revision-platform",
+  "version": "1.0.0",
+  "description": "制度文档修订对比与发布台",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  }
+}

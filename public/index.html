@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>制度文档修订对比与发布台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>📋 制度文档修订对比与发布台</h1>
+    <div class="role-bar">
+      <label>当前角色：</label>
+      <select id="roleSelect">
+        <option value="editor">编辑员（提交修订）</option>
+        <option value="approver">审批员（审批发布）</option>
+      </select>
+      <input type="text" id="operatorName" placeholder="输入姓名" value="张编辑">
+      <button id="switchRoleBtn" class="btn btn-sm">切换</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs">
+      <button class="tab active" data-tab="import">文档导入</button>
+      <button class="tab" data-tab="documents">文档列表</button>
+      <button class="tab" data-tab="revision">修订提交</button>
+      <button class="tab" data-tab="approval">审批发布</button>
+      <button class="tab" data-tab="diff">版本对比</button>
+      <button class="tab" data-tab="archives">归档记录</button>
+      <button class="tab" data-tab="log">修订日志</button>
+    </nav>
+
+    <section id="tab-import" class="tab-content active">
+      <h2>导入文档</h2>
+      <div class="form-group">
+        <label>文档标题</label>
+        <input type="text" id="importTitle" placeholder="如：信息安全管理制度" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>文档内容</label>
+        <textarea id="importContent" rows="15" placeholder="粘贴或输入文档正文内容..." style="width:100%"></textarea>
+      </div>
+      <button id="importBtn" class="btn btn-primary">导入文档</button>
+      <div id="importResult" class="result-area"></div>
+
+      <h3>快速导入样例</h3>
+      <button id="loadSampleBtn" class="btn btn-secondary">加载样例文档</button>
+    </section>
+
+    <section id="tab-documents" class="tab-content">
+      <h2>文档列表</h2>
+      <button id="refreshDocsBtn" class="btn btn-secondary">刷新</button>
+      <table id="docsTable" class="data-table">
+        <thead>
+          <tr><th>ID</th><th>标题</th><th>当前版本</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="tab-revision" class="tab-content">
+      <h2>提交修订</h2>
+      <div class="form-group">
+        <label>选择文档</label>
+        <select id="revisionDocSelect" style="width:100%"></select>
+      </div>
+      <div class="form-group">
+        <label>修订理由（必填）</label>
+        <textarea id="revisionReason" rows="3" placeholder="说明修订原因，不得为空" style="width:100%"></textarea>
+      </div>
+      <div class="form-group">
+        <label>修订后内容</label>
+        <textarea id="revisionContent" rows="15" style="width:100%"></textarea>
+      </div>
+      <div class="form-group">
+        <button id="loadCurrentBtn" class="btn btn-secondary">加载当前版本内容</button>
+        <button id="previewDiffBtn" class="btn btn-secondary">预览差异</button>
+      </div>
+      <button id="submitRevisionBtn" class="btn btn-primary">提交修订</button>
+      <div id="revisionResult" class="result-area"></div>
+      <div id="diffPreview" class="diff-area"></div>
+    </section>
+
+    <section id="tab-approval" class="tab-content">
+      <h2>审批发布</h2>
+      <button id="refreshRevisionsBtn" class="btn btn-secondary">刷新</button>
+      <table id="revisionsTable" class="data-table">
+        <thead>
+          <tr><th>修订ID</th><th>文档</th><th>版本</th><th>理由</th><th>状态</th><th>提交人</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="approvalResult" class="result-area"></div>
+    </section>
+
+    <section id="tab-diff" class="tab-content">
+      <h2>版本对比</h2>
+      <div class="form-group">
+        <label>选择文档</label>
+        <select id="diffDocSelect" style="width:100%"></select>
+      </div>
+      <button id="showVersionsBtn" class="btn btn-secondary">查看版本列表</button>
+      <div id="versionList" class="version-list"></div>
+      <div class="form-group" style="margin-top:12px">
+        <label>旧版本</label>
+        <select id="diffOldVer" style="width:100%"></select>
+      </div>
+      <div class="form-group">
+        <label>新版本</label>
+        <select id="diffNewVer" style="width:100%"></select>
+      </div>
+      <button id="generateDiffBtn" class="btn btn-primary">生成差异对比</button>
+      <div id="diffResult" class="diff-area"></div>
+    </section>
+
+    <section id="tab-archives" class="tab-content">
+      <h2>归档记录</h2>
+      <div class="form-group">
+        <label>选择文档</label>
+        <select id="archiveDocSelect" style="width:100%"></select>
+      </div>
+      <button id="loadArchivesBtn" class="btn btn-secondary">加载归档</button>
+      <div id="archiveList"></div>
+    </section>
+
+    <section id="tab-log" class="tab-content">
+      <h2>修订日志</h2>
+      <div class="form-group">
+        <label>选择文档</label>
+        <select id="logDocSelect" style="width:100%"></select>
+      </div>
+      <button id="exportLogBtn" class="btn btn-primary">导出修订日志</button>
+      <button id="checkConsistencyBtn" class="btn btn-secondary">一致性校验</button>
+      <div id="logResult"></div>
+      <div id="consistencyResult" class="result-area"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
