@@ -1,72 +1,320 @@
 {
   "documents": {
-    "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3": {
-      "id": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
-      "title": "日志测试文档",
-      "currentVersionId": "c5cf607f-0d5b-4232-a3ea-e2f26427a27b",
-      "createdBy": "张编辑",
-      "createdAt": "2026-06-16T17:59:23.732Z"
+    "d44c751c-7a13-4614-9a74-b353f0bb227a": {
+      "id": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "title": "信息安全管理制度",
+      "currentVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
+      "createdBy": "命令行测试",
+      "createdAt": "2026-06-16T18:18:55.907Z"
     }
   },
   "versions": {
-    "c5cf607f-0d5b-4232-a3ea-e2f26427a27b": {
-      "id": "c5cf607f-0d5b-4232-a3ea-e2f26427a27b",
-      "documentId": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
+    "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e": {
+      "id": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
       "versionNumber": "1.0",
-      "content": "初始内容",
+      "content": "第一章 总则\r\n\r\n第一条 为加强信息安全管理，保障公司信息资产安全，特制定本制度。\r\n\r\n第二条 本制度适用于公司全体员工及外部合作人员。\r\n\r\n第三条 信息安全管理工作坚持\"预防为主、综合治理\"的原则。\r\n\r\n第二章 管理职责\r\n\r\n第四条 信息技术部负责信息安全技术防护体系的建设与运维。\r\n\r\n第五条 各部门负责人为本部门信息安全第一责任人。\r\n\r\n第六条 全体员工应自觉遵守信息安全相关规定，发现安全隐患应及时报告。\r\n",
+      "createdBy": "命令行测试",
+      "createdAt": "2026-06-16T18:18:55.907Z"
+    },
+    "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6": {
+      "id": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "versionNumber": "1.1",
+      "content": "别人改的新版本内容",
+      "createdBy": "赵编辑",
+      "createdAt": "2026-06-16T18:18:56.116Z"
+    },
+    "e7412f93-ec89-466e-9989-ff48a0e7c8d4": {
+      "id": "e7412f93-ec89-466e-9989-ff48a0e7c8d4",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "versionNumber": "1.2",
+      "content": "编辑员提交的内容",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T17:59:23.732Z"
+      "createdAt": "2026-06-16T18:18:56.126Z"
     }
   },
-  "revisions": {},
+  "revisions": {
+    "44a970da-6e41-4f12-9241-af8cbdfb5190": {
+      "id": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "oldVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "newVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
+      "oldVersionNumber": "1.0",
+      "newVersionNumber": "1.1",
+      "reason": "别人的修订",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "newStart": 1,
+            "lines": [
+              {
+                "type": "removed",
+                "content": "第一章 总则\r",
+                "oldLine": 1
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 2
+              },
+              {
+                "type": "removed",
+                "content": "第一条 为加强信息安全管理，保障公司信息资产安全，特制定本制度。\r",
+                "oldLine": 3
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 4
+              },
+              {
+                "type": "removed",
+                "content": "第二条 本制度适用于公司全体员工及外部合作人员。\r",
+                "oldLine": 5
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 6
+              },
+              {
+                "type": "removed",
+                "content": "第三条 信息安全管理工作坚持\"预防为主、综合治理\"的原则。\r",
+                "oldLine": 7
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 8
+              },
+              {
+                "type": "removed",
+                "content": "第二章 管理职责\r",
+                "oldLine": 9
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 10
+              },
+              {
+                "type": "removed",
+                "content": "第四条 信息技术部负责信息安全技术防护体系的建设与运维。\r",
+                "oldLine": 11
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 12
+              },
+              {
+                "type": "removed",
+                "content": "第五条 各部门负责人为本部门信息安全第一责任人。\r",
+                "oldLine": 13
+              },
+              {
+                "type": "removed",
+                "content": "\r",
+                "oldLine": 14
+              },
+              {
+                "type": "removed",
+                "content": "第六条 全体员工应自觉遵守信息安全相关规定，发现安全隐患应及时报告。\r",
+                "oldLine": 15
+              },
+              {
+                "type": "removed",
+                "content": "",
+                "oldLine": 16
+              },
+              {
+                "type": "added",
+                "content": "别人改的新版本内容",
+                "newLine": 1
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 16,
+          "unchanged": 0
+        },
+        "hasChanges": true,
+        "oldLineCount": 16,
+        "newLineCount": 1
+      },
+      "status": "published",
+      "submittedBy": "赵编辑",
+      "submittedAt": "2026-06-16T18:18:56.116Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T18:18:56.119Z",
+      "publishedAt": "2026-06-16T18:18:56.119Z",
+      "withdrawnAt": null,
+      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e"
+    },
+    "ce07e05d-7874-4706-b741-debfc1934bf9": {
+      "id": "ce07e05d-7874-4706-b741-debfc1934bf9",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "oldVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
+      "newVersionId": "e7412f93-ec89-466e-9989-ff48a0e7c8d4",
+      "oldVersionNumber": "1.1",
+      "newVersionNumber": "1.2",
+      "reason": "编辑员提交",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "newStart": 1,
+            "lines": [
+              {
+                "type": "removed",
+                "content": "别人改的新版本内容",
+                "oldLine": 1
+              },
+              {
+                "type": "added",
+                "content": "编辑员提交的内容",
+                "newLine": 1
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 1,
+          "unchanged": 0
+        },
+        "hasChanges": true,
+        "oldLineCount": 1,
+        "newLineCount": 1
+      },
+      "status": "submitted",
+      "submittedBy": "张编辑",
+      "submittedAt": "2026-06-16T18:18:56.126Z",
+      "approvedBy": null,
+      "approvedAt": null,
+      "publishedAt": null,
+      "withdrawnAt": null,
+      "baselineVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6"
+    }
+  },
   "revisionLogs": [
     {
-      "id": "31c85ee7-d78b-4a49-94d3-644941a6c9f2",
-      "documentId": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
+      "id": "abecd68b-c9c1-4051-96cc-d0d2d0693f6f",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
       "action": "import",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T17:59:23.732Z",
+      "operator": "命令行测试",
+      "timestamp": "2026-06-16T18:18:55.907Z",
       "detail": {
-        "versionId": "c5cf607f-0d5b-4232-a3ea-e2f26427a27b",
+        "versionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
         "versionNumber": "1.0"
       }
     },
     {
-      "id": "2987398b-1f4e-4561-8d4b-418a1cea338b",
-      "documentId": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
-      "draftId": "a5f9be5f-e856-4d4e-bf9d-dd2e9ec35fdd",
+      "id": "6e2bca30-bda6-4460-ae8d-0701d8203c6c",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "draftId": "ae864459-a231-4a91-87e0-d303dd7ab595",
       "action": "draft_save",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T17:59:23.733Z",
+      "timestamp": "2026-06-16T18:18:56.109Z",
       "detail": {
         "baselineVersion": "1.0",
         "isNew": true
       }
     },
     {
-      "id": "d739f4f6-e642-49d9-8d99-51608206f4b1",
-      "documentId": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
-      "draftId": "a5f9be5f-e856-4d4e-bf9d-dd2e9ec35fdd",
+      "id": "2eb38c01-4e25-45a1-a051-b891c9ba7334",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "draftId": "cca1c4a7-a4f0-442e-b44a-09267b106900",
       "action": "draft_save",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T17:59:23.734Z",
+      "operator": "王编辑",
+      "timestamp": "2026-06-16T18:18:56.114Z",
       "detail": {
+        "baselineVersion": "1.0",
+        "isNew": true
+      }
+    },
+    {
+      "id": "c91b3032-cc15-4263-a1b5-d3b176563c31",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "action": "submit",
+      "operator": "赵编辑",
+      "timestamp": "2026-06-16T18:18:56.116Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "别人的修订",
         "baselineVersion": "1.0"
       }
     },
     {
-      "id": "eeb42e8f-1082-4943-9d3d-262d41e6065b",
-      "documentId": "e0ffc11a-076b-49c6-9ced-b75bb7cd3cc3",
-      "draftId": "a5f9be5f-e856-4d4e-bf9d-dd2e9ec35fdd",
-      "action": "draft_delete",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T17:59:23.735Z",
+      "id": "ee6ed68c-5610-409c-86b0-6734066ee0dd",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "action": "publish",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T18:18:56.119Z",
       "detail": {
-        "baselineVersion": "1.0"
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "别人的修订"
+      }
+    },
+    {
+      "id": "b6c8b7b7-922d-43bf-a32e-6024248cd2c2",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "revisionId": "ce07e05d-7874-4706-b741-debfc1934bf9",
+      "action": "submit",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:18:56.126Z",
+      "detail": {
+        "from": "1.1",
+        "to": "1.2",
+        "reason": "编辑员提交",
+        "baselineVersion": "1.1"
       }
     }
   ],
-  "archives": [],
-  "drafts": {},
+  "archives": [
+    {
+      "id": "4dfecc5c-c0b6-4668-9806-2207be816e6e",
+      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "versionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "versionNumber": "1.0",
+      "reason": "别人的修订",
+      "archivedAt": "2026-06-16T18:18:56.119Z"
+    }
+  ],
+  "drafts": {
+    "ae864459-a231-4a91-87e0-d303dd7ab595": {
+      "id": "ae864459-a231-4a91-87e0-d303dd7ab595",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "baselineVersionNumber": "1.0",
+      "content": "这是草稿内容\n第二行草稿",
+      "reason": "草稿测试理由",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:18:56.109Z",
+      "updatedAt": "2026-06-16T18:18:56.109Z",
+      "status": "draft"
+    },
+    "cca1c4a7-a4f0-442e-b44a-09267b106900": {
+      "id": "cca1c4a7-a4f0-442e-b44a-09267b106900",
+      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "baselineVersionNumber": "1.0",
+      "content": "冲突草稿内容",
+      "reason": "冲突测试",
+      "createdBy": "王编辑",
+      "createdAt": "2026-06-16T18:18:56.114Z",
+      "updatedAt": "2026-06-16T18:18:56.114Z",
+      "status": "draft"
+    }
+  },
   "users": {}
 }

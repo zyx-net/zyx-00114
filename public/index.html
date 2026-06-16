@@ -25,6 +25,7 @@
       <button class="tab active" data-tab="import">文档导入</button>
       <button class="tab" data-tab="documents">文档列表</button>
       <button class="tab" data-tab="revision">修订提交</button>
+      <button class="tab" data-tab="drafts">草稿箱</button>
       <button class="tab" data-tab="approval">审批发布</button>
       <button class="tab" data-tab="diff">版本对比</button>
       <button class="tab" data-tab="archives">归档记录</button>
@@ -78,8 +79,37 @@
         <button id="previewDiffBtn" class="btn btn-secondary">预览差异</button>
       </div>
       <button id="submitRevisionBtn" class="btn btn-primary">提交修订</button>
+      <button id="saveDraftBtn" class="btn btn-secondary">保存草稿</button>
       <div id="revisionResult" class="result-area"></div>
       <div id="diffPreview" class="diff-area"></div>
+    </section>
+
+    <section id="tab-drafts" class="tab-content">
+      <h2>草稿箱</h2>
+      <div class="form-group">
+        <label>选择文档</label>
+        <select id="draftDocSelect" style="width:100%"></select>
+      </div>
+      <button id="refreshDraftsBtn" class="btn btn-secondary">刷新草稿列表</button>
+      <div id="draftList" class="draft-list"></div>
+      <div id="draftEditArea" class="draft-edit-area" style="display:none">
+        <h3>编辑草稿</h3>
+        <div class="form-group">
+          <label>修订理由</label>
+          <textarea id="draftReason" rows="3" style="width:100%"></textarea>
+        </div>
+        <div class="form-group">
+          <label>修订内容</label>
+          <textarea id="draftContent" rows="15" style="width:100%"></textarea>
+        </div>
+        <div class="form-group">
+          <button id="draftUpdateBtn" class="btn btn-secondary">保存修改</button>
+          <button id="draftSubmitBtn" class="btn btn-primary">从草稿提交修订</button>
+          <button id="draftDeleteBtn" class="btn btn-danger">删除草稿</button>
+        </div>
+        <div id="draftConflictWarning" class="conflict-warning" style="display:none"></div>
+        <div id="draftResult" class="result-area"></div>
+      </div>
     </section>
 
     <section id="tab-approval" class="tab-content">
@@ -130,7 +160,36 @@
         <label>选择文档</label>
         <select id="logDocSelect" style="width:100%"></select>
       </div>
-      <button id="exportLogBtn" class="btn btn-primary">导出修订日志</button>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label>操作人</label>
+          <input type="text" id="logFilterOperator" placeholder="按操作人筛选" style="width:160px">
+        </div>
+        <div class="form-group">
+          <label>动作</label>
+          <select id="logFilterAction" style="width:160px">
+            <option value="">全部</option>
+            <option value="import">导入</option>
+            <option value="submit">提交修订</option>
+            <option value="publish">发布版本</option>
+            <option value="withdraw">撤回</option>
+            <option value="draft_save">保存草稿</option>
+            <option value="draft_delete">删除草稿</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="logFilterStatus" style="width:160px">
+            <option value="">全部</option>
+            <option value="submitted">已提交</option>
+            <option value="published">已发布</option>
+            <option value="withdrawn">已撤回</option>
+            <option value="draft">草稿</option>
+          </select>
+        </div>
+      </div>
+      <button id="exportLogBtn" class="btn btn-primary">查询日志</button>
+      <button id="exportCsvBtn" class="btn btn-secondary">导出 CSV</button>
       <button id="checkConsistencyBtn" class="btn btn-secondary">一致性校验</button>
       <div id="logResult"></div>
       <div id="consistencyResult" class="result-area"></div>

@@ -279,6 +279,43 @@ check(
   'server.js 定义了 PORT，默认 3200'
 );
 
+// ---- 13. 前端入口可见性：页面包含草稿箱、筛选、CSV导出入口 ----
+console.log('\n【13】前端入口可见性：页面包含草稿箱、筛选、CSV导出入口');
+const indexHtml = readFile('public/index.html');
+check(indexHtml.includes('data-tab="drafts"'), 'index.html 有草稿箱标签页入口');
+check(indexHtml.includes('tab-drafts'), 'index.html 有草稿箱内容区');
+check(indexHtml.includes('saveDraftBtn'), 'index.html 修订区有保存草稿按钮');
+check(indexHtml.includes('draftConflictWarning'), 'index.html 有冲突警告区域');
+check(indexHtml.includes('draftSubmitBtn'), 'index.html 有从草稿提交按钮');
+check(indexHtml.includes('logFilterOperator'), 'index.html 日志区有操作人筛选输入');
+check(indexHtml.includes('logFilterAction'), 'index.html 日志区有动作筛选下拉');
+check(indexHtml.includes('logFilterStatus'), 'index.html 日志区有状态筛选下拉');
+check(indexHtml.includes('exportCsvBtn'), 'index.html 有 CSV 导出按钮');
+
+// ---- 14. 前端逻辑链路：app.js 接通了草稿/冲突/筛选/权限 ----
+console.log('\n【14】前端逻辑链路：app.js 接通了草稿/冲突/筛选/权限');
+const appJs = readFile('public/app.js');
+check(appJs.includes('/drafts'), 'app.js 调用草稿 API');
+check(appJs.includes('/conflict'), 'app.js 调用冲突检测 API');
+check(appJs.includes('/submit'), 'app.js 调用从草稿提交 API');
+check(appJs.includes('409'), 'app.js 处理基线版本冲突 HTTP 409 响应');
+check(appJs.includes('draftConflictWarning'), 'app.js 显示冲突警告到界面');
+check(appJs.includes('logFilterAction'), 'app.js 读取动作筛选参数');
+check(appJs.includes('logFilterStatus'), 'app.js 读取状态筛选参数');
+check(appJs.includes('logFilterOperator'), 'app.js 读取操作人筛选参数');
+check(appJs.includes('export.csv'), 'app.js 构造 CSV 下载链接');
+check(appJs.includes('isOwner') || appJs.includes('createdBy'), 'app.js 判断草稿归属控制编辑权限');
+check(appJs.includes("role === 'approver'"), 'app.js 根据角色控制审批按钮');
+
+// ---- 15. 前端样式：style.css 有草稿/冲突/筛选相关样式 ----
+console.log('\n【15】前端样式：style.css 有草稿/冲突/筛选相关样式');
+const cssContent = readFile('public/style.css');
+check(cssContent.includes('.draft-card'), 'style.css 有草稿卡片样式');
+check(cssContent.includes('.conflict-warning'), 'style.css 有冲突警告样式');
+check(cssContent.includes('.filter-bar'), 'style.css 有筛选栏样式');
+check(cssContent.includes('.draft-edit-area'), 'style.css 有草稿编辑区样式');
+check(cssContent.includes('.action-draft_save'), 'style.css 有草稿日志颜色');
+
 // ---- 汇总 ----
 console.log('\n' + '='.repeat(60));
 console.log('  交付验证：✅ ' + passed.length + ' 项通过  ❌ ' + failed.length + ' 项失败');

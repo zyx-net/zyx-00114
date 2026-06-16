@@ -5,6 +5,7 @@ const archSvc = require('../lib/archive');
 const diffSvc = require('../lib/diff');
 const draftSvc = require('../lib/draft');
 const authSvc = require('../lib/auth');
+const path = require('path');
 
 let passed = 0;
 let failed = 0;
@@ -315,6 +316,48 @@ function run() {
   assert(draftLogs2.some(l => l.action === 'draft_save'), '日志中有 draft_save 动作');
   assert(draftLogs2.some(l => l.action === 'draft_delete'), '日志中有 draft_delete 动作');
   assert(draftLogs2.some(l => l.detail && l.detail.baselineVersion), '草稿日志详情中包含基线版本信息');
+
+  section('29. 前端入口可见性：index.html 包含草稿箱、筛选、CSV导出');
+  const fs = require('fs');
+  const indexPath = path.join(__dirname, '..', 'public', 'index.html');
+  const indexHtml = fs.readFileSync(indexPath, 'utf-8');
+  assert(indexHtml.includes('data-tab="drafts"'), 'index.html 包含草稿箱标签页');
+  assert(indexHtml.includes('tab-drafts'), 'index.html 包含草稿箱内容区');
+  assert(indexHtml.includes('draftDocSelect'), 'index.html 包含草稿文档选择器');
+  assert(indexHtml.includes('draftList'), 'index.html 包含草稿列表容器');
+  assert(indexHtml.includes('draftConflictWarning'), 'index.html 包含冲突警告区域');
+  assert(indexHtml.includes('draftSubmitBtn'), 'index.html 包含从草稿提交按钮');
+  assert(indexHtml.includes('saveDraftBtn'), 'index.html 修订区包含保存草稿按钮');
+  assert(indexHtml.includes('logFilterOperator'), 'index.html 日志区包含操作人筛选');
+  assert(indexHtml.includes('logFilterAction'), 'index.html 日志区包含动作筛选');
+  assert(indexHtml.includes('logFilterStatus'), 'index.html 日志区包含状态筛选');
+  assert(indexHtml.includes('exportCsvBtn'), 'index.html 包含 CSV 导出按钮');
+
+  section('30. 前端逻辑链路：app.js 包含草稿/冲突/筛选/权限关键函数');
+  const appPath = path.join(__dirname, '..', 'public', 'app.js');
+  const appJs = fs.readFileSync(appPath, 'utf-8');
+  assert(appJs.includes('/drafts'), 'app.js 调用草稿 API');
+  assert(appJs.includes('/conflict'), 'app.js 调用冲突检测 API');
+  assert(appJs.includes('/drafts/') && appJs.includes('/submit'), 'app.js 调用从草稿提交 API');
+  assert(appJs.includes('BASELINE_CONFLICT') || appJs.includes('409'), 'app.js 处理基线版本冲突响应');
+  assert(appJs.includes('draftConflictWarning'), 'app.js 显示冲突警告');
+  assert(appJs.includes('exportCsvBtn'), 'app.js 绑定 CSV 导出按钮');
+  assert(appJs.includes('logFilterAction'), 'app.js 使用动作筛选参数');
+  assert(appJs.includes('logFilterStatus'), 'app.js 使用状态筛选参数');
+  assert(appJs.includes('logFilterOperator'), 'app.js 使用操作人筛选参数');
+  assert(appJs.includes('isOwner') || appJs.includes('createdBy'), 'app.js 判断草稿归属');
+  assert(appJs.includes("role === 'approver'"), 'app.js 根据角色控制审批按钮可见性');
+  assert(appJs.includes('export.csv'), 'app.js CSV 下载链接指向 export.csv 端点');
+
+  section('31. 前端样式：style.css 包含草稿/冲突/筛选样式');
+  const cssPath = path.join(__dirname, '..', 'public', 'style.css');
+  const cssContent = fs.readFileSync(cssPath, 'utf-8');
+  assert(cssContent.includes('.draft-card'), 'style.css 包含草稿卡片样式');
+  assert(cssContent.includes('.conflict-warning'), 'style.css 包含冲突警告样式');
+  assert(cssContent.includes('.filter-bar'), 'style.css 包含筛选栏样式');
+  assert(cssContent.includes('.draft-edit-area'), 'style.css 包含草稿编辑区样式');
+  assert(cssContent.includes('.action-draft_save'), 'style.css 包含草稿日志样式');
+  assert(cssContent.includes('.status-draft'), 'style.css 包含草稿状态样式');
 
   console.log('\n' + '='.repeat(60));
   console.log(`  测试结果：✅ ${passed} 通过  ❌ ${failed} 失败`);

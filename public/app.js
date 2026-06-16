@@ -49,9 +49,10 @@
       tab.classList.add('active');
       const target = $('#tab-' + tab.dataset.tab);
       if (target) target.classList.add('active');
-      if (['revision', 'diff', 'approval', 'archives', 'log'].includes(tab.dataset.tab)) {
+      if (['revision', 'diff', 'approval', 'archives', 'log', 'drafts'].includes(tab.dataset.tab)) {
         loadDocSelects();
       }
+      if (tab.dataset.tab === 'drafts') loadDrafts();
     });
   });
 
@@ -135,7 +136,7 @@
   async function loadDocSelects() {
     const { data } = await api('/documents');
     const selects = [
-      '#revisionDocSelect', '#diffDocSelect', '#archiveDocSelect', '#logDocSelect'
+      '#revisionDocSelect', '#diffDocSelect', '#archiveDocSelect', '#logDocSelect', '#draftDocSelect'
     ];
     selects.forEach(sel => {
       const s = $(sel);
@@ -208,6 +209,164 @@
     }
   });
 
+  $('#saveDraftBtn').addEventListener('click', async () => {
+    const docId = $('#revisionDocSelect').value;
+    const reason = $('#revisionReason').value.trim();
+    const content = $('#revisionContent').value;
+    const el = $('#revisionResult');
+
+    if (!docId) return toast('请先选择文档', 'error');
+    if (!content) return toast('修订内容不能为空', 'error');
+
+    const { ok, data } = await api('/drafts', {
+      method: 'POST',
+      body: JSON.stringify({ documentId: docId, content, reason, operator: getOperator() })
+    });
+
+    if (ok) {
+      showResult(el, '草稿保存成功！草稿ID: ' + shortId(data.draft.id) +
+        (data.isNew ? '（新建）' : '（更新已有草稿）'), 'success');
+      toast('草稿已保存');
+    } else {
+      showResult(el, '保存草稿失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  let currentDraftId = null;
+
+  $('#refreshDraftsBtn').addEventListener('click', loadDrafts);
+
+  async function loadDrafts() {
+    const docId = $('#draftDocSelect').value;
+    const operator = getOperator();
+    const container = $('#draftList');
+    container.innerHTML = '';
+
+    let drafts = [];
+    if (docId) {
+      const { data } = await api('/drafts?documentId=' + docId);
+      drafts = data || [];
+    } else {
+      const { data } = await api('/drafts?operator=' + encodeURIComponent(operator));
+      drafts = data || [];
+    }
+
+    if (drafts.length === 0) {
+      container.innerHTML = '<p style="color:#999">暂无草稿</p>';
+      $('#draftEditArea').style.display = 'none';
+      return;
+    }
+
+    drafts.filter(d => d.status === 'draft').forEach(d => {
+      const div = document.createElement('div');
+      div.className = 'draft-card' + (d.id === currentDraftId ? ' active' : '');
+      div.innerHTML = `
+        <strong>${escapeHtml(d.reason || '无理由')}</strong>
+        <span class="draft-baseline">基线 v${d.baselineVersionNumber}</span>
+        <div class="meta">
+          创建人: ${d.createdBy} | 更新: ${fmtTime(d.updatedAt)} | 内容长度: ${d.content.length} 字符
+        </div>`;
+      div.addEventListener('click', () => openDraft(d.id));
+      container.appendChild(div);
+    });
+  }
+
+  async function openDraft(draftId) {
+    const { data: draft } = await api('/drafts/' + draftId);
+    if (!draft) return toast('草稿不存在', 'error');
+
+    currentDraftId = draftId;
+    $('#draftReason').value = draft.reason || '';
+    $('#draftContent').value = draft.content || '';
+    $('#draftEditArea').style.display = 'block';
+    $('#draftConflictWarning').style.display = 'none';
+
+    const isOwner = draft.createdBy === getOperator();
+    $('#draftUpdateBtn').style.display = isOwner ? '' : 'none';
+    $('#draftDeleteBtn').style.display = isOwner ? '' : 'none';
+    $('#draftSubmitBtn').style.display = isOwner ? '' : 'none';
+
+    if (!isOwner) {
+      $('#draftResult').textContent = '此草稿由 ' + draft.createdBy + ' 创建，您只能查看';
+      $('#draftResult').className = 'result-area show info';
+    }
+
+    const { data: conflict } = await api('/drafts/' + draftId + '/conflict');
+    if (conflict && conflict.hasConflict) {
+      const warningEl = $('#draftConflictWarning');
+      warningEl.innerHTML = '<strong>⚠ 基线版本冲突</strong><br>' +
+        '此草稿基于版本 <strong>v' + conflict.baselineVersion + '</strong>，但文档当前版本已更新为 <strong>v' + conflict.currentVersion + '</strong>。<br>' +
+        '提交此草稿将被拦截。请基于最新版本重新创建草稿。';
+      warningEl.style.display = 'block';
+    }
+
+    loadDrafts();
+  }
+
+  $('#draftUpdateBtn').addEventListener('click', async () => {
+    if (!currentDraftId) return toast('请先选择草稿', 'error');
+    const { ok, data } = await api('/drafts/' + currentDraftId, {
+      method: 'PUT',
+      body: JSON.stringify({
+        content: $('#draftContent').value,
+        reason: $('#draftReason').value,
+        operator: getOperator()
+      })
+    });
+    const el = $('#draftResult');
+    if (ok) {
+      showResult(el, '草稿已更新', 'success');
+      toast('草稿已保存');
+      loadDrafts();
+    } else {
+      showResult(el, '更新失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#draftSubmitBtn').addEventListener('click', async () => {
+    if (!currentDraftId) return toast('请先选择草稿', 'error');
+    const { ok, status, data } = await api('/drafts/' + currentDraftId + '/submit', {
+      method: 'POST',
+      body: JSON.stringify({ operator: getOperator() })
+    });
+    const el = $('#draftResult');
+    if (ok) {
+      showResult(el, '从草稿提交修订成功！版本: ' + data.revision.oldVersionNumber + ' → ' + data.revision.newVersionNumber, 'success');
+      toast('修订已提交');
+      currentDraftId = null;
+      $('#draftEditArea').style.display = 'none';
+      loadDrafts();
+    } else if (status === 409) {
+      const warningEl = $('#draftConflictWarning');
+      warningEl.innerHTML = '<strong>⚠ 基线版本冲突 - 提交被拦截</strong><br>' +
+        (data.message || '草稿基于的版本与当前版本不一致，无法提交') + '<br>' +
+        '请基于最新版本重新创建草稿。';
+      warningEl.style.display = 'block';
+      showResult(el, '提交失败: ' + (data.message || '基线版本冲突'), 'error');
+    } else {
+      showResult(el, '提交失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#draftDeleteBtn').addEventListener('click', async () => {
+    if (!currentDraftId) return toast('请先选择草稿', 'error');
+    if (!confirm('确定删除此草稿？')) return;
+    const { ok, data } = await api('/drafts/' + currentDraftId, {
+      method: 'DELETE',
+      body: JSON.stringify({ operator: getOperator() })
+    });
+    const el = $('#draftResult');
+    if (ok) {
+      showResult(el, '草稿已删除', 'success');
+      toast('草稿已删除');
+      currentDraftId = null;
+      $('#draftEditArea').style.display = 'none';
+      loadDrafts();
+    } else {
+      showResult(el, '删除失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
   $('#refreshRevisionsBtn').addEventListener('click', loadRevisions);
 
   async function loadRevisions() {
@@ -222,13 +381,15 @@
     tbody.innerHTML = '';
     allRevs.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
+    const role = getRole();
+
     allRevs.forEach(rev => {
       const tr = document.createElement('tr');
       let actions = '';
-      if (rev.status === 'submitted') {
+      if (rev.status === 'submitted' && role === 'approver') {
         actions = `<button class="btn btn-sm btn-success" onclick="app.approve('${rev.id}')">审批发布</button>`;
       }
-      if (rev.status === 'published') {
+      if (rev.status === 'published' && role === 'approver') {
         actions = `<button class="btn btn-sm btn-danger" onclick="app.withdraw('${rev.id}')">撤回</button>`;
       }
       tr.innerHTML = `
@@ -244,7 +405,7 @@
   }
 
   function statusLabel(s) {
-    return { submitted: '待审批', published: '已发布', withdrawn: '已撤回' }[s] || s;
+    return { submitted: '待审批', published: '已发布', withdrawn: '已撤回', draft: '草稿' }[s] || s;
   }
 
   window.app.approve = async function (revId) {
@@ -390,15 +551,29 @@
     });
   });
 
-  $('#exportLogBtn').addEventListener('click', async () => {
+  $('#exportLogBtn').addEventListener('click', loadFilteredLog);
+
+  async function loadFilteredLog() {
     const docId = $('#logDocSelect').value;
     if (!docId) return toast('请先选择文档', 'error');
-    const { data } = await api('/documents/' + docId + '/revision-log');
+
+    const params = new URLSearchParams();
+    const action = $('#logFilterAction').value;
+    const operator = $('#logFilterOperator').value.trim();
+    const status = $('#logFilterStatus').value;
+
+    if (action) params.set('action', action);
+    if (operator) params.set('operator', operator);
+    if (status) params.set('status', status);
+
+    const qs = params.toString();
+    const url = '/documents/' + docId + '/revision-log' + (qs ? '?' + qs : '');
+    const { data } = await api(url);
     const container = $('#logResult');
     container.innerHTML = '';
 
     if (!data || data.length === 0) {
-      container.innerHTML = '<p style="color:#999">暂无修订日志</p>';
+      container.innerHTML = '<p style="color:#999">无匹配的修订日志</p>';
       return;
     }
 
@@ -406,7 +581,8 @@
       const div = document.createElement('div');
       div.className = 'log-entry action-' + log.action;
       const actionLabel = {
-        import: '导入', submit: '提交修订', publish: '审批发布', withdraw: '撤回'
+        import: '导入', submit: '提交修订', publish: '审批发布', withdraw: '撤回',
+        draft_save: '保存草稿', draft_delete: '删除草稿'
       }[log.action] || log.action;
 
       let detail = '';
@@ -420,6 +596,12 @@
         if (log.detail.reason) {
           detail += ` | 理由: ${log.detail.reason}`;
         }
+        if (log.detail.baselineVersion) {
+          detail += ` | 基线: v${log.detail.baselineVersion}`;
+        }
+        if (log.detail.fromDraft) {
+          detail += ' | 来源: 草稿';
+        }
       }
 
       div.innerHTML = `
@@ -430,7 +612,31 @@
       container.appendChild(div);
     });
 
-    toast('修订日志已导出');
+    toast('已查询 ' + data.length + ' 条日志');
+  }
+
+  $('#exportCsvBtn').addEventListener('click', () => {
+    const docId = $('#logDocSelect').value;
+    if (!docId) return toast('请先选择文档', 'error');
+
+    const params = new URLSearchParams();
+    params.set('documentId', docId);
+    const action = $('#logFilterAction').value;
+    const operator = $('#logFilterOperator').value.trim();
+    const status = $('#logFilterStatus').value;
+
+    if (action) params.set('action', action);
+    if (operator) params.set('operator', operator);
+    if (status) params.set('status', status);
+
+    const url = API + '/revision-log/export.csv?' + params.toString();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'revision-log.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('CSV 文件已下载');
   });
 
   $('#checkConsistencyBtn').addEventListener('click', async () => {
