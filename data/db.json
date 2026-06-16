@@ -1,0 +1,220 @@
+{
+  "documents": {
+    "84de61aa-3b55-4085-94b8-5ed36c1a6054": {
+      "id": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "title": "信息安全管理制度",
+      "currentVersionId": "1f9f8a90-8a30-4443-a275-1930cda2bcb5",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T17:20:31.220Z"
+    }
+  },
+  "versions": {
+    "2a2fd0ac-7b05-4bcc-82eb-90cc2f504f3e": {
+      "id": "2a2fd0ac-7b05-4bcc-82eb-90cc2f504f3e",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "versionNumber": "1.0",
+      "content": "第一章 总则\n第一条 本制度适用全体员工。",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T17:20:31.220Z"
+    },
+    "1f9f8a90-8a30-4443-a275-1930cda2bcb5": {
+      "id": "1f9f8a90-8a30-4443-a275-1930cda2bcb5",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "versionNumber": "1.1",
+      "content": "第一章 总则\n第一条 本制度适用全体员工及外部合作人员。",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T17:20:31.227Z"
+    },
+    "cb5dab4e-b61f-425b-b3b4-94eb36a06fbb": {
+      "id": "cb5dab4e-b61f-425b-b3b4-94eb36a06fbb",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "versionNumber": "1.2",
+      "content": "第一章 总则\n第一条 本制度适用全体员工及外部合作人员。\n第二条 违规者将受处罚。",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T17:20:31.243Z"
+    }
+  },
+  "revisions": {
+    "9912bd9a-9ce3-4ef8-afa0-35659973f1c8": {
+      "id": "9912bd9a-9ce3-4ef8-afa0-35659973f1c8",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "oldVersionId": "2a2fd0ac-7b05-4bcc-82eb-90cc2f504f3e",
+      "newVersionId": "1f9f8a90-8a30-4443-a275-1930cda2bcb5",
+      "oldVersionNumber": "1.0",
+      "newVersionNumber": "1.1",
+      "reason": "扩展适用范围至外部合作人员",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 2,
+            "newStart": 2,
+            "lines": [
+              {
+                "type": "removed",
+                "content": "第一条 本制度适用全体员工。",
+                "oldLine": 2
+              },
+              {
+                "type": "added",
+                "content": "第一条 本制度适用全体员工及外部合作人员。",
+                "newLine": 2
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 1,
+          "unchanged": 1
+        },
+        "hasChanges": true,
+        "oldLineCount": 2,
+        "newLineCount": 2
+      },
+      "status": "published",
+      "submittedBy": "张编辑",
+      "submittedAt": "2026-06-16T17:20:31.227Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T17:20:31.230Z",
+      "publishedAt": "2026-06-16T17:20:31.230Z",
+      "withdrawnAt": null
+    },
+    "f5b28939-04f8-4e94-9b86-14bc0831cb62": {
+      "id": "f5b28939-04f8-4e94-9b86-14bc0831cb62",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "oldVersionId": "1f9f8a90-8a30-4443-a275-1930cda2bcb5",
+      "newVersionId": "cb5dab4e-b61f-425b-b3b4-94eb36a06fbb",
+      "oldVersionNumber": "1.1",
+      "newVersionNumber": "1.2",
+      "reason": "新增处罚条款",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 3,
+            "newStart": 3,
+            "lines": [
+              {
+                "type": "added",
+                "content": "第二条 违规者将受处罚。",
+                "newLine": 3
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "hasChanges": true,
+        "oldLineCount": 2,
+        "newLineCount": 3
+      },
+      "status": "withdrawn",
+      "submittedBy": "张编辑",
+      "submittedAt": "2026-06-16T17:20:31.243Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T17:20:31.246Z",
+      "publishedAt": "2026-06-16T17:20:31.246Z",
+      "withdrawnAt": "2026-06-16T17:20:31.249Z"
+    }
+  },
+  "revisionLogs": [
+    {
+      "id": "6cabf4e1-7ad2-4b99-8205-f5d856cb8ca6",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "action": "import",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T17:20:31.220Z",
+      "detail": {
+        "versionId": "2a2fd0ac-7b05-4bcc-82eb-90cc2f504f3e",
+        "versionNumber": "1.0"
+      }
+    },
+    {
+      "id": "bc176dc8-aaf1-4653-9e8a-d04227f25f62",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "revisionId": "9912bd9a-9ce3-4ef8-afa0-35659973f1c8",
+      "action": "submit",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T17:20:31.227Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "扩展适用范围至外部合作人员"
+      }
+    },
+    {
+      "id": "34875bad-9bb2-4417-bbc3-023ecab63d43",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "revisionId": "9912bd9a-9ce3-4ef8-afa0-35659973f1c8",
+      "action": "publish",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T17:20:31.230Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "扩展适用范围至外部合作人员"
+      }
+    },
+    {
+      "id": "054768c8-b1f9-47e6-9c4f-74f9fe13766c",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "revisionId": "f5b28939-04f8-4e94-9b86-14bc0831cb62",
+      "action": "submit",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T17:20:31.243Z",
+      "detail": {
+        "from": "1.1",
+        "to": "1.2",
+        "reason": "新增处罚条款"
+      }
+    },
+    {
+      "id": "9b4f833e-3c2c-4520-b671-e0d00c206cb7",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "revisionId": "f5b28939-04f8-4e94-9b86-14bc0831cb62",
+      "action": "publish",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T17:20:31.246Z",
+      "detail": {
+        "from": "1.1",
+        "to": "1.2",
+        "reason": "新增处罚条款"
+      }
+    },
+    {
+      "id": "daeb1ca8-93d1-45ac-98cc-e8da48c17dd7",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "revisionId": "f5b28939-04f8-4e94-9b86-14bc0831cb62",
+      "action": "withdraw",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T17:20:31.249Z",
+      "detail": {
+        "from": "1.2",
+        "to": "1.1",
+        "reason": "撤回已发布版本"
+      }
+    }
+  ],
+  "archives": [
+    {
+      "id": "c4619d0a-7437-46e9-b781-6cf61b5269f4",
+      "revisionId": "9912bd9a-9ce3-4ef8-afa0-35659973f1c8",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "versionId": "2a2fd0ac-7b05-4bcc-82eb-90cc2f504f3e",
+      "versionNumber": "1.0",
+      "reason": "扩展适用范围至外部合作人员",
+      "archivedAt": "2026-06-16T17:20:31.230Z"
+    },
+    {
+      "id": "aa6cec80-d387-4506-a78f-8ac650548512",
+      "revisionId": "f5b28939-04f8-4e94-9b86-14bc0831cb62",
+      "documentId": "84de61aa-3b55-4085-94b8-5ed36c1a6054",
+      "versionId": "1f9f8a90-8a30-4443-a275-1930cda2bcb5",
+      "versionNumber": "1.1",
+      "reason": "新增处罚条款",
+      "archivedAt": "2026-06-16T17:20:31.246Z"
+    }
+  ]
+}
