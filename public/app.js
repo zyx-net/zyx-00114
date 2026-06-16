@@ -58,6 +58,9 @@
         refreshAuditBatches();
         refreshAuditPlaybacks();
       }
+      if (tab.dataset.tab === 'batch') {
+        refreshBatchList();
+      }
     });
   });
 
@@ -1045,6 +1048,257 @@
       `;
     }).join('');
   }
+
+  let pendingBatchLogs = null;
+  let currentBatchId = null;
+
+  $('#batchImportFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('#batchImportFileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    pendingBatchLogs = null;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (Array.isArray(parsed)) {
+          pendingBatchLogs = parsed;
+        } else if (parsed && parsed.revisionLogs && Array.isArray(parsed.revisionLogs)) {
+          pendingBatchLogs = parsed.revisionLogs;
+        } else if (parsed && Array.isArray(parsed.logs)) {
+          pendingBatchLogs = parsed.logs;
+        } else {
+          toast('文件格式不支持', 'error');
+        }
+      } catch (err) {
+        toast('文件解析失败: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  $('#batchImportBtn').addEventListener('click', async () => {
+    const el = $('#batchImportResult');
+    if (!pendingBatchLogs || pendingBatchLogs.length === 0) {
+      return showResult(el, '请先选择有效的日志 JSON 文件', 'error');
+    }
+    const operator = getOperator();
+    if (!operator || operator === '未知') {
+      return showResult(el, '导入被拒绝：必须明确操作者身份', 'error');
+    }
+    if (getRole() !== 'approver') {
+      return showResult(el, '导入被拒绝：仅审批员可执行批次导入', 'error');
+    }
+    showResult(el, '导入中...', 'info');
+    const { ok, status, data } = await api('/batch-trace/import', {
+      method: 'POST',
+      body: JSON.stringify({
+        logs: pendingBatchLogs,
+        operator,
+        source: $('#batchImportSource').value || 'frontend',
+        notes: $('#batchImportNotes').value || '',
+        conflictStrategy: $('#batchConflictStrategy').value || 'reject'
+      })
+    });
+    currentBatchId = data.batchId || null;
+    if (ok) {
+      if (status === 202) {
+        showResult(el, '⚠ 部分导入：共 ' + data.recordCount + ' 条，成功 ' + data.insertedCount + ' 条，冲突 ' + data.conflictCount + ' 条。请在下方选择冲突处理策略。', 'error');
+        renderBatchConflicts(data.conflicts || []);
+        currentBatchId = data.batchId;
+      } else {
+        showResult(el, '✅ 批次导入成功！批次ID: ' + shortId(data.batchId) + '，共导入 ' + data.insertedCount + ' 条日志\n指纹: ' + (data.contentFingerprint || '-'), 'success');
+        $('#batchConflictArea').style.display = 'none';
+      }
+      toast('导入完成');
+      refreshBatchList();
+    } else if (status === 409) {
+      showResult(el, '⛔ 重复导入被拦截：' + (data.message || '内容指纹与已有批次相同') + '\n请选择 skip 或 merge 策略后重新导入', 'error');
+    } else if (status === 200 && data.skipped) {
+      showResult(el, '⏭ 已按 skip 策略跳过重复导入：' + data.message, 'info');
+    } else {
+      showResult(el, '导入失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  function renderBatchConflicts(conflicts) {
+    if (!conflicts || conflicts.length === 0) {
+      $('#batchConflictArea').style.display = 'none';
+      return;
+    }
+    const list = $('#batchConflictList');
+    list.innerHTML = conflicts.map(c => `
+      <div style="padding:6px 0;border-bottom:1px dashed #ffd43b">
+        <div><strong>日志ID:</strong> ${shortId(c.logId)} | <strong>原因:</strong> ${c.reason}</div>
+        ${c.existingLog ? `<div style="color:#888;font-size:12px">现有记录: ${c.existingLog.action} @ ${c.existingLog.timestamp} by ${c.existingLog.operator}</div>` : ''}
+      </div>
+    `).join('');
+    $('#batchConflictArea').style.display = 'block';
+  }
+
+  $('#batchReimportBtn').addEventListener('click', async () => {
+    if (!currentBatchId) return toast('没有待处理的批次', 'error');
+    const strategy = $('#batchConflictReimportStrategy').value;
+    const el = $('#batchReimportResult');
+    if (getRole() !== 'approver') {
+      return showResult(el, '冲突重导入被拒绝：仅审批员可执行此操作', 'error');
+    }
+    const { ok, data } = await api('/batch-trace/batches/' + currentBatchId + '/reimport', {
+      method: 'POST',
+      body: JSON.stringify({ strategy, operator: getOperator() })
+    });
+    if (ok) {
+      showResult(el, '重导入完成: ' + (data.message || '') + '（策略: ' + strategy + '）', 'success');
+      $('#batchConflictArea').style.display = 'none';
+      toast('重导入完成');
+    } else {
+      showResult(el, '重导入失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#batchRefreshBtn').addEventListener('click', refreshBatchList);
+
+  async function refreshBatchList() {
+    const importer = $('#batchFilterImporter').value.trim();
+    const hasConflicts = $('#batchFilterConflicts').value;
+    const params = new URLSearchParams();
+    if (importer) params.set('importedBy', importer);
+    if (hasConflicts) params.set('hasConflicts', hasConflicts);
+    const qs = params.toString();
+    const { data } = await api('/batch-trace/batches' + (qs ? '?' + qs : ''));
+    const listEl = $('#batchList');
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<p style="color:#999">暂无导入批次</p>';
+      return;
+    }
+    listEl.innerHTML = data.map(b => {
+      const isRedacted = b._redacted;
+      return `
+        <div class="batch-card" style="padding:10px;border:1px solid #eee;border-radius:6px;margin-bottom:8px;cursor:pointer" data-batch-id="${b.batchId}">
+          <div><strong>${fmtTime(b.importedAt)}</strong> by <strong>${escapeHtml(b.importedBy)}</strong></div>
+          <div style="font-size:12px;color:#666;margin-top:4px">
+            批次 ${shortId(b.batchId)} | 总计 ${b.recordCount} | ✅ ${b.insertedCount} | ⚠ ${b.conflictCount} | ❌ ${b.invalidCount || 0}
+            ${b.sourceFile ? ' | 来源: ' + escapeHtml(b.sourceFile) : ''}
+            ${isRedacted ? ' | <span style="color:#e03131">脱敏视图</span>' : ''}
+          </div>
+          ${!isRedacted && b.contentFingerprint ? `<div style="font-size:11px;color:#888;margin-top:2px">指纹: ${b.contentFingerprint}</div>` : ''}
+          ${!isRedacted && b.sourceDigest ? `<div style="font-size:11px;color:#888">来源摘要: ${b.sourceDigest}</div>` : ''}
+          ${!isRedacted && b.mergedFrom ? `<div style="font-size:11px;color:#2f9e44">合并自批次: ${shortId(b.mergedFrom)}</div>` : ''}
+          ${!isRedacted && b._reimport ? `<div style="font-size:11px;color:#888;margin-top:2px">重导入: 策略=${b._reimport.strategy} by ${b._reimport.by}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.batch-card').forEach(card => {
+      card.addEventListener('click', () => loadBatchDetail(card.dataset.batchId));
+    });
+  }
+
+  async function loadBatchDetail(batchId) {
+    currentBatchId = batchId;
+    const operator = getOperator();
+    const { data } = await api('/batch-trace/batches/' + batchId + '?viewer=' + encodeURIComponent(operator));
+    if (!data || data.batchId !== batchId) {
+      toast('批次不存在', 'error');
+      return;
+    }
+
+    const section = $('#batchDetailSection');
+    const content = $('#batchDetailContent');
+    section.style.display = 'block';
+    const isRedacted = data._redacted;
+
+    let html = `
+      <div class="batch-detail-card" style="padding:16px;border:1px solid #ddd;border-radius:8px;background:#fafafa">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div><strong>批次ID:</strong> ${data.batchId}</div>
+          <div><strong>导入人:</strong> ${escapeHtml(data.importedBy)}</div>
+          <div><strong>导入时间:</strong> ${fmtTime(data.importedAt)}</div>
+          <div><strong>来源:</strong> ${escapeHtml(data.sourceFile || '-')}</div>
+          <div><strong>总计:</strong> ${data.recordCount}</div>
+          <div><strong>成功:</strong> ${data.insertedCount}</div>
+          <div><strong>冲突:</strong> ${data.conflictCount}</div>
+          <div><strong>无效:</strong> ${data.invalidCount || 0}</div>
+          ${!isRedacted ? `
+          <div><strong>内容指纹:</strong> ${data.contentFingerprint || '-'}</div>
+          <div><strong>来源摘要:</strong> ${data.sourceDigest || '-'}</div>
+          <div><strong>冲突策略:</strong> ${data.conflictStrategy || '-'}</div>
+          <div><strong>合并自:</strong> ${data.mergedFrom ? shortId(data.mergedFrom) : '无'}</div>
+          ` : '<div style="color:#e03131">⚠ 您无权查看详细指纹和摘要信息（非批次 owner）</div>'}
+        </div>
+        ${data.notes ? `<div style="margin-top:8px;font-size:12px;color:#888">备注: ${escapeHtml(data.notes)}</div>` : ''}
+      </div>
+    `;
+
+    if (!isRedacted && data.conflicts && data.conflicts.length > 0) {
+      html += `<h4 style="margin-top:16px">冲突明细 (${data.conflicts.length})</h4>`;
+      html += '<div style="max-height:200px;overflow:auto;font-size:12px">';
+      data.conflicts.forEach(c => {
+        html += `<div style="padding:4px 0;border-bottom:1px dashed #eee">${shortId(c.logId)}: ${c.reason} (${c.conflictType})</div>`;
+      });
+      html += '</div>';
+    }
+
+    if (!isRedacted && data.invalidLogs && data.invalidLogs.length > 0) {
+      html += `<h4 style="margin-top:12px">失败明细 (${data.invalidLogs.length})</h4>`;
+      html += '<div style="max-height:150px;overflow:auto;font-size:12px">';
+      data.invalidLogs.forEach(l => {
+        html += `<div style="padding:4px 0;border-bottom:1px dashed #eee">第 ${l.index} 条: ${l.reason}</div>`;
+      });
+      html += '</div>';
+    }
+
+    content.innerHTML = html;
+    $('#batchDetailPlaybacks').innerHTML = '<p style="color:#999">点击"加载回放"查看</p>';
+  }
+
+  $('#batchDetailPlaybacksBtn').addEventListener('click', async () => {
+    if (!currentBatchId) return toast('请先选择批次', 'error');
+    const operator = getOperator();
+    const { data } = await api('/batch-trace/batches/' + currentBatchId + '/playbacks?viewer=' + encodeURIComponent(operator));
+    const listEl = $('#batchDetailPlaybacks');
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<p style="color:#999">此批次暂无关联回放记录</p>';
+      return;
+    }
+    listEl.innerHTML = data.map(r => {
+      const isRedacted = r._redacted;
+      return `
+        <div style="padding:8px;border:1px solid #e7f5ff;border-radius:4px;margin-bottom:6px;background:#f8f9fa;font-size:12px">
+          <strong>${fmtTime(r.playbackAt)}</strong> by ${escapeHtml(r.playbackBy)} | ${r.logCount} 条日志
+          ${isRedacted ? ' | <span style="color:#e03131">脱敏</span>' : ''}
+        </div>
+      `;
+    }).join('');
+  });
+
+  $('#batchExportAuditBtn').addEventListener('click', async () => {
+    if (!currentBatchId) return toast('请先选择批次', 'error');
+    const operator = getOperator();
+    const el = $('#batchExportResult');
+    const { ok, status, data } = await api('/batch-trace/batches/' + currentBatchId + '/export-audit?viewer=' + encodeURIComponent(operator));
+    if (ok) {
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'batch-audit-' + currentBatchId.slice(0, 8) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showResult(el, '✅ 审计摘要已导出', 'success');
+      toast('审计摘要已下载');
+    } else if (status === 403) {
+      showResult(el, '⛔ 导出被拒绝：' + (data.message || '仅批次 owner 或审批员可导出'), 'error');
+    } else {
+      showResult(el, '导出失败: ' + (data.message || data.error), 'error');
+    }
+  });
+
+  $('#batchFilterImporter').addEventListener('input', () => { refreshBatchList(); });
+  $('#batchFilterConflicts').addEventListener('change', () => { refreshBatchList(); });
 
   loadDocuments();
 })();

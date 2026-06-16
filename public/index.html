@@ -31,6 +31,7 @@
       <button class="tab" data-tab="archives">归档记录</button>
       <button class="tab" data-tab="log">修订日志</button>
       <button class="tab" data-tab="audit">审计回放</button>
+      <button class="tab" data-tab="batch">批次追溯</button>
     </nav>
 
     <section id="tab-import" class="tab-content active">
@@ -311,6 +312,102 @@
           <h3>📝 回放记录（审计链）</h3>
           <button id="auditRefreshPlaybacks" class="btn btn-secondary">刷新列表</button>
           <div id="auditPlaybacksList" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-batch" class="tab-content">
+      <h2>🔗 导入批次追溯中心</h2>
+
+      <div class="info-box" style="background:#f0fff4;padding:12px;border-radius:6px;margin-bottom:16px;border-left:4px solid #40c057">
+        <h4 style="margin:0 0 8px 0">使用说明</h4>
+        <ul style="margin:0;padding-left:20px;color:#444;font-size:13px;line-height:1.8">
+          <li><strong>批次导入：</strong>每次导入生成独立批次实体，记录导入人、时间、来源文件摘要、记录数量、指纹、冲突和失败明细，后续每条回放可精确挂到对应批次。</li>
+          <li><strong>重复导入检测：</strong>再导入同一批内容时，系统按指纹匹配给出拒绝、跳过或合并提示，不会静默覆盖，也不会把记录串到别人的快照下。</li>
+          <li><strong>批次列表与详情：</strong>查看所有批次、筛选、查看详情（含冲突明细和失败明细），按批次筛选回放记录。</li>
+          <li><strong>导出审计摘要：</strong>支持导出批次级审计摘要，包含指纹、冲突、回放关联等完整信息。</li>
+          <li><strong>权限说明：</strong>非批次 owner 只能看到脱敏快照和批次元数据（摘要信息），审批员可查看全部详情并导出。</li>
+          <li><strong>持久化：</strong>批次、回放映射和冲突日志均持久化到 db.json，服务重启后保持一致。</li>
+        </ul>
+      </div>
+
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="flex:1;min-width:320px">
+          <h3>📥 批次导入</h3>
+          <div class="form-group">
+            <label>选择日志 JSON 文件</label>
+            <label class="btn btn-secondary" style="display:inline-block;cursor:pointer;width:100%;text-align:center">
+              选择文件...
+              <input type="file" id="batchImportFile" accept=".json" style="display:none">
+            </label>
+            <div id="batchImportFileName" style="margin-top:6px;font-size:12px;color:#888">未选择文件</div>
+          </div>
+          <div class="form-group">
+            <label>导入来源说明</label>
+            <input type="text" id="batchImportSource" placeholder="如：导出备份 2024-xx-xx" style="width:100%">
+          </div>
+          <div class="form-group">
+            <label>备注（可选）</label>
+            <input type="text" id="batchImportNotes" placeholder="导入目的或备注" style="width:100%">
+          </div>
+          <div class="form-group">
+            <label>重复导入冲突策略</label>
+            <select id="batchConflictStrategy" style="width:100%">
+              <option value="reject">reject - 拒绝重复导入（默认）</option>
+              <option value="skip">skip - 跳过重复内容</option>
+              <option value="merge">merge - 合并（为新条目重新生成ID）</option>
+            </select>
+          </div>
+          <button id="batchImportBtn" class="btn btn-primary">执行批次导入</button>
+          <div id="batchImportResult" class="result-area"></div>
+
+          <div id="batchConflictArea" style="display:none;margin-top:16px;padding:12px;border:1px solid #ffd43b;border-radius:6px;background:#fffbe6">
+            <h4 style="margin:0 0 10px 0;color:#c92a2a">⚠ 发现冲突，需要处理</h4>
+            <div id="batchConflictList" style="font-size:13px;max-height:200px;overflow:auto;margin-bottom:12px"></div>
+            <label>处理策略：</label>
+            <select id="batchConflictReimportStrategy" style="margin-right:8px">
+              <option value="skip">skip - 跳过冲突</option>
+              <option value="overwrite">overwrite - 覆盖冲突</option>
+              <option value="force_new_id">force_new_id - 生成新ID插入</option>
+            </select>
+            <button id="batchReimportBtn" class="btn btn-secondary">执行重导入</button>
+            <div id="batchReimportResult" class="result-area"></div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:320px">
+          <h3>📦 批次列表</h3>
+          <div class="filter-bar">
+            <div class="form-group">
+              <label>导入人</label>
+              <input type="text" id="batchFilterImporter" placeholder="按导入人筛选" style="width:140px">
+            </div>
+            <div class="form-group">
+              <label>仅冲突</label>
+              <select id="batchFilterConflicts" style="width:100px">
+                <option value="">全部</option>
+                <option value="true">有冲突</option>
+              </select>
+            </div>
+          </div>
+          <button id="batchRefreshBtn" class="btn btn-secondary">刷新列表</button>
+          <div id="batchList" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <hr style="margin:24px 0;border:0;border-top:1px solid #eee">
+
+      <div id="batchDetailSection" style="display:none">
+        <h3>📋 批次详情</h3>
+        <div id="batchDetailContent"></div>
+        <div style="margin-top:16px">
+          <h4>关联回放记录</h4>
+          <button id="batchDetailPlaybacksBtn" class="btn btn-secondary" style="margin-bottom:8px">加载回放</button>
+          <div id="batchDetailPlaybacks"></div>
+        </div>
+        <div style="margin-top:16px">
+          <button id="batchExportAuditBtn" class="btn btn-primary">导出批次审计摘要</button>
+          <div id="batchExportResult" class="result-area"></div>
         </div>
       </div>
     </section>

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const auditSvc = require('../lib/audit-playback');
+const batchSvc = require('../lib/batch-trace');
 
 const args = process.argv.slice(2);
 
@@ -18,12 +19,20 @@ function printUsage() {
   console.error('  --strategy           冲突处理策略: skip | overwrite | force_new_id（仅审批员可用）');
   console.error('  --list               查看所有导入批次（不需要文件参数）');
   console.error('  --playback <批次ID>  按批次执行审计回放（需要操作者是审批员）');
+  console.error('  --batch-list         查看所有批次追溯批次（importBatches）');
+  console.error('  --batch-detail <ID>  查看批次追溯详情');
+  console.error('  --export-audit <ID>  导出批次审计摘要');
+  console.error('  --duplicate-check    检查文件是否与已有批次重复（需搭配文件参数）');
+  console.error('  --conflict-strategy  批次导入冲突策略: reject | skip | merge');
   console.error('');
   console.error('示例:');
   console.error('  node scripts/import-log.js logs.json 张编辑 --source "备份恢复"');
   console.error('  node scripts/import-log.js logs.json 李审批 --strategy overwrite');
   console.error('  node scripts/import-log.js --list');
   console.error('  node scripts/import-log.js --playback <batchId> 李审批');
+  console.error('  node scripts/import-log.js --batch-list');
+  console.error('  node scripts/import-log.js --batch-detail <batchId>');
+  console.error('  node scripts/import-log.js --export-audit <batchId>');
 }
 
 if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
@@ -84,6 +93,96 @@ if (playbackIdx >= 0) {
     snapItems.slice(0, 5).forEach(i => {
       console.log(`  快照${i.snapshotId.slice(0, 8)}...: ${i.snapshotAccessible ? '✅ 已授权' : '⛔ 已拦截（非草稿owner）'}`);
     });
+  }
+  process.exit(0);
+}
+
+if (args.includes('--batch-list')) {
+  const batches = batchSvc.getBatches();
+  if (batches.length === 0) {
+    console.log('暂无批次追溯记录');
+  } else {
+    console.log(`\n共 ${batches.length} 个批次追溯记录:\n`);
+    batches.forEach(b => {
+      console.log(`  批次: ${b.batchId}`);
+      console.log(`    导入时间: ${b.importedAt}`);
+      console.log(`    操作人: ${b.importedBy}`);
+      console.log(`    总计: ${b.recordCount} | 成功: ${b.insertedCount} | 冲突: ${b.conflictCount} | 无效: ${b.invalidCount}`);
+      console.log(`    来源: ${b.sourceFile || '-'}`);
+      console.log(`    指纹: ${b.contentFingerprint || '-'}`);
+      if (b.conflictCount > 0) console.log(`    ⚠ 有 ${b.conflictCount} 条冲突记录`);
+      if (b.mergedFrom) console.log(`    合并自: ${b.mergedFrom}`);
+      console.log('');
+    });
+  }
+  process.exit(0);
+}
+
+const batchDetailIdx = args.indexOf('--batch-detail');
+if (batchDetailIdx >= 0) {
+  const batchId = args[batchDetailIdx + 1];
+  if (!batchId) {
+    console.error('错误: --batch-detail 需要批次ID');
+    process.exit(1);
+  }
+  const batch = batchSvc.getBatch(batchId, null);
+  if (!batch) {
+    console.error('错误: 批次不存在');
+    process.exit(1);
+  }
+  console.log('\n===== 批次详情 =====');
+  console.log(JSON.stringify(batch, null, 2));
+  process.exit(0);
+}
+
+const exportAuditIdx = args.indexOf('--export-audit');
+if (exportAuditIdx >= 0) {
+  const batchId = args[exportAuditIdx + 1];
+  const viewer = args[exportAuditIdx + 2];
+  if (!batchId || !viewer) {
+    console.error('错误: --export-audit 需要批次ID和操作人');
+    process.exit(1);
+  }
+  const summary = batchSvc.exportBatchAuditSummary(batchId, viewer);
+  if (summary.error) {
+    console.error('导出失败:', summary.message || summary.error);
+    process.exit(1);
+  }
+  console.log(JSON.stringify(summary, null, 2));
+  process.exit(0);
+}
+
+const duplicateCheckIdx = args.indexOf('--duplicate-check');
+if (duplicateCheckIdx >= 0) {
+  const checkFilePath = args[duplicateCheckIdx + 1];
+  if (!checkFilePath) {
+    console.error('错误: --duplicate-check 需要文件路径');
+    process.exit(1);
+  }
+  if (!fs.existsSync(checkFilePath)) {
+    console.error('错误: 文件不存在:', checkFilePath);
+    process.exit(1);
+  }
+  try {
+    const raw = fs.readFileSync(checkFilePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    let checkLogs = [];
+    if (Array.isArray(parsed)) checkLogs = parsed;
+    else if (parsed.revisionLogs) checkLogs = parsed.revisionLogs;
+    else if (parsed.logs) checkLogs = parsed.logs;
+    const sourceDigest = batchSvc.computeSourceDigest(checkLogs);
+    const contentFingerprint = batchSvc.computeFingerprint(checkLogs);
+    const result = batchSvc.checkDuplicateImport(sourceDigest, contentFingerprint);
+    if (result.isDuplicate) {
+      console.log(`⛔ 检测到重复导入！与批次 ${result.existingBatchId} (导入人: ${result.existingBatchImportedBy}, 时间: ${result.existingBatchImportedAt}) 内容相同`);
+    } else {
+      console.log('✅ 未检测到重复导入，可以安全导入');
+    }
+    console.log(`来源摘要: ${sourceDigest}`);
+    console.log(`内容指纹: ${contentFingerprint}`);
+  } catch (e) {
+    console.error('错误: 读取或解析文件失败:', e.message);
+    process.exit(1);
   }
   process.exit(0);
 }

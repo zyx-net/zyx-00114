@@ -7,6 +7,7 @@ const diffSvc = require('../lib/diff');
 const draftSvc = require('../lib/draft');
 const authSvc = require('../lib/auth');
 const auditSvc = require('../lib/audit-playback');
+const batchSvc = require('../lib/batch-trace');
 const store = require('../lib/store');
 
 router.get('/export', (req, res) => {
@@ -369,6 +370,115 @@ router.get('/revision-log/playback-records/:recordId', (req, res) => {
   const record = auditSvc.getPlaybackRecord(req.params.recordId, viewer);
   if (!record) return res.status(404).json({ error: 'RECORD_NOT_FOUND', message: '回放记录不存在' });
   res.json(record);
+});
+
+router.post('/batch-trace/import', (req, res) => {
+  const { logs, operator, source, notes, conflictStrategy } = req.body;
+  if (!logs || !Array.isArray(logs)) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '请求体必须包含 logs 数组' });
+  }
+  const result = batchSvc.createBatch(logs, operator, { source, notes, conflictStrategy });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'DUPLICATE_IMPORT') {
+      return res.status(409).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  if (result.skipped) {
+    return res.status(200).json(result);
+  }
+  if (result.conflictCount > 0 && result.conflictStrategy !== 'merge') {
+    return res.status(202).json({ ...result, message: '部分导入成功，存在冲突记录，请检查详情' });
+  }
+  res.status(201).json(result);
+});
+
+router.get('/batch-trace/batches', (req, res) => {
+  const { importedBy, since, sourceFile, hasConflicts } = req.query;
+  const filters = {};
+  if (importedBy) filters.importedBy = importedBy;
+  if (since) filters.since = since;
+  if (sourceFile) filters.sourceFile = sourceFile;
+  if (hasConflicts) filters.hasConflicts = hasConflicts === 'true';
+  res.json(batchSvc.getBatches(filters));
+});
+
+router.get('/batch-trace/batches/:batchId', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const batch = batchSvc.getBatch(req.params.batchId, viewer);
+  if (!batch) return res.status(404).json({ error: 'BATCH_NOT_FOUND', message: '导入批次不存在' });
+  res.json(batch);
+});
+
+router.get('/batch-trace/batches/:batchId/logs', (req, res) => {
+  const logs = batchSvc.getLogsByBatch(req.params.batchId);
+  res.json(logs);
+});
+
+router.get('/batch-trace/batches/:batchId/playbacks', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const playbacks = batchSvc.getPlaybacksByBatch(req.params.batchId);
+  if (!viewer) {
+    const redacted = playbacks.map(p => p._redacted ? p : {
+      id: p.id,
+      playbackAt: p.playbackAt,
+      playbackBy: p.playbackBy,
+      logCount: p.logCount,
+      summary: p.summary,
+      _redacted: true
+    });
+    return res.json(redacted);
+  }
+  res.json(playbacks);
+});
+
+router.post('/batch-trace/batches/:batchId/reimport', (req, res) => {
+  const { strategy, operator } = req.body;
+  if (!strategy) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须指定冲突处理策略: skip/overwrite/force_new_id' });
+  }
+  const result = batchSvc.reimportBatchWithStrategy(req.params.batchId, strategy, operator);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/batch-trace/batches/:batchId/export-audit', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const result = batchSvc.exportBatchAuditSummary(req.params.batchId, viewer);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/batch-trace/link-playback', (req, res) => {
+  const { playbackRecordId, batchId, operator } = req.body;
+  if (!playbackRecordId || !batchId || !operator) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须指定 playbackRecordId、batchId 和 operator' });
+  }
+  const result = batchSvc.linkPlaybackToBatch(playbackRecordId, batchId, operator);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/batch-trace/duplicate-check', (req, res) => {
+  const { sourceDigest, contentFingerprint } = req.query;
+  if (!sourceDigest && !contentFingerprint) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须提供 sourceDigest 或 contentFingerprint' });
+  }
+  const result = batchSvc.checkDuplicateImport(sourceDigest || '', contentFingerprint || '');
+  res.json(result);
 });
 
 module.exports = router;
