@@ -17,12 +17,16 @@ router.get('/export', (req, res) => {
 
 router.post('/import', (req, res) => {
   const imported = req.body;
+  const operator = req.body.operator || null;
   if (!imported || typeof imported !== 'object') {
     return res.status(400).json({ error: 'Invalid import data' });
   }
-  const result = store.importData(imported);
+  const result = store.importData(imported, operator);
   if (result.error) {
     return res.status(422).json(result);
+  }
+  if (result.conflictCount > 0 || result.ownershipIssueCount > 0) {
+    return res.status(202).json({ ...result, message: '部分导入成功，存在冲突或归属权问题，请检查详情' });
   }
   res.json(result);
 });
@@ -144,7 +148,7 @@ router.get('/drafts', (req, res) => {
   if (operator) {
     drafts = draftSvc.getDraftsByUser(operator);
   } else if (documentId) {
-    drafts = draftSvc.getDraftsByDoc(documentId);
+    drafts = draftSvc.getDraftsByDoc(documentId, operator || null);
   } else {
     drafts = [];
   }
@@ -152,7 +156,8 @@ router.get('/drafts', (req, res) => {
 });
 
 router.get('/drafts/:draftId', (req, res) => {
-  const draft = draftSvc.getDraft(req.params.draftId);
+  const operator = req.query.operator || null;
+  const draft = draftSvc.getDraft(req.params.draftId, operator);
   if (!draft) return res.status(404).json({ error: 'Draft not found' });
   res.json(draft);
 });
