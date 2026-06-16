@@ -316,13 +316,115 @@ check(cssContent.includes('.filter-bar'), 'style.css 有筛选栏样式');
 check(cssContent.includes('.draft-edit-area'), 'style.css 有草稿编辑区样式');
 check(cssContent.includes('.action-draft_save'), 'style.css 有草稿日志颜色');
 
-// ---- 汇总 ----
-console.log('\n' + '='.repeat(60));
-console.log('  交付验证：✅ ' + passed.length + ' 项通过  ❌ ' + failed.length + ' 项失败');
-console.log('='.repeat(60));
+// ---- 16. 路由无重复：api.js 不存在同路径无筛选旧路由 ----
+console.log('\n【16】路由无重复：api.js 不存在同路径无筛选旧路由');
+const apiCode = readFile('routes/api.js');
+const routeOccurrences = (apiCode.match(/get\('\/documents\/:docId\/revision-log'/g) || []).length;
+check(routeOccurrences === 1, 'GET /documents/:docId/revision-log 只定义一次（当前 ' + routeOccurrences + ' 次）');
 
-if (failed.length > 0) {
-  console.log('\n失败项：');
-  failed.forEach(f => console.log('  - ' + f));
-  process.exit(1);
-}
+const docLogFilterPresent = apiCode.includes("filters.action = action") && apiCode.includes("filters.operator = operator") && apiCode.includes("filters.status = status");
+check(docLogFilterPresent, '剩余的 /documents/:docId/revision-log 路由读取了 action/operator/status 筛选参数');
+
+// ---- 17. HTTP 端点级筛选验证 ----
+console.log('\n【17】HTTP 端点级筛选验证：页面查询和 CSV 导出结果一致');
+
+(async () => {
+  const http = require('http');
+  const DELIVERY_PORT = 3298;
+
+  function httpGetJson(urlPath) {
+    return new Promise((resolve, reject) => {
+      http.get('http://127.0.0.1:' + DELIVERY_PORT + urlPath, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
+          catch (e) { resolve({ status: res.statusCode, data: body }); }
+        });
+      }).on('error', reject);
+    });
+  }
+
+  function httpGetRaw(urlPath) {
+    return new Promise((resolve, reject) => {
+      http.get('http://127.0.0.1:' + DELIVERY_PORT + urlPath, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve({ status: res.statusCode, data: body }));
+      }).on('error', reject);
+    });
+  }
+
+  function httpPost(urlPath, payload) {
+    return new Promise((resolve, reject) => {
+      const postData = JSON.stringify(payload);
+      const req = http.request({ hostname: '127.0.0.1', port: DELIVERY_PORT, path: urlPath, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { resolve(body); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+  }
+
+  resetData();
+  const appModule = require(path.join(ROOT, 'server'));
+  const deliveryServer = require('http').createServer(appModule);
+
+  await new Promise((resolve, reject) => {
+    deliveryServer.listen(DELIVERY_PORT, resolve);
+    deliveryServer.on('error', reject);
+  });
+
+  try {
+    const created = await httpPost('/api/documents', { title: '交付筛选验证文档', content: '初始内容', operator: '张编辑' });
+    check(created.document && created.document.id, '通过 HTTP 创建文档成功');
+    const httpDocId = created.document.id;
+
+    const revCreated = await httpPost('/api/documents/' + httpDocId + '/revisions', { content: '修改后内容', reason: '交付筛选测试', operator: '张编辑' });
+    check(revCreated.revision && revCreated.revision.id, '通过 HTTP 提交修订成功');
+    const httpRevId = revCreated.revision.id;
+
+    const approved = await httpPost('/api/revisions/' + httpRevId + '/approve', { approver: '李审批' });
+    check(approved.revision && approved.revision.status === 'published', '通过 HTTP 审批发布成功');
+
+    await httpPost('/api/drafts', { documentId: httpDocId, content: '草稿内容', reason: '交付筛选草稿', operator: '张编辑' });
+
+    const allLogsRes = await httpGetJson('/api/documents/' + httpDocId + '/revision-log');
+    check(allLogsRes.data.length >= 4, '无筛选时返回全部日志（>=4条）');
+
+    const draftFilterRes = await httpGetJson('/api/documents/' + httpDocId + '/revision-log?status=draft');
+    const draftFilterLogs = draftFilterRes.data;
+    check(draftFilterLogs.length > 0, 'status=draft 筛选返回结果');
+    check(draftFilterLogs.every(l => l.action === 'draft_save' || l.action === 'draft_delete'), 'status=draft 筛选不混入 import/submit/publish');
+    check(!draftFilterLogs.some(l => l.action === 'import' || l.action === 'submit' || l.action === 'publish'), 'draft 筛选无任何非草稿动作');
+
+    const submitFilterRes = await httpGetJson('/api/documents/' + httpDocId + '/revision-log?action=submit');
+    check(submitFilterRes.data.every(l => l.action === 'submit'), 'action=submit 筛选只有 submit');
+    check(!submitFilterRes.data.some(l => l.action === 'import' || l.action === 'publish'), 'submit 筛选不混入 import/publish');
+
+    const csvRes = await httpGetRaw('/api/documents/' + httpDocId + '/revision-log/export.csv?status=draft');
+    const csvBody = csvRes.data;
+    const csvDataLines = csvBody.split('\n').filter(l => l.trim() !== '').slice(1);
+    check(csvDataLines.length === draftFilterLogs.length, 'CSV 数据行数与 JSON 筛选一致（' + csvDataLines.length + ' vs ' + draftFilterLogs.length + '）');
+
+    const csvSubmitRes = await httpGetRaw('/api/documents/' + httpDocId + '/revision-log/export.csv?action=submit');
+    const csvSubmitLines = csvSubmitRes.data.split('\n').filter(l => l.trim() !== '').slice(1);
+    check(csvSubmitLines.length === submitFilterRes.data.length, 'CSV submit 行数与 JSON 一致');
+  } finally {
+    deliveryServer.close();
+  }
+
+  // ---- 汇总 ----
+  console.log('\n' + '='.repeat(60));
+  console.log('  交付验证：✅ ' + passed.length + ' 项通过  ❌ ' + failed.length + ' 项失败');
+  console.log('='.repeat(60));
+
+  if (failed.length > 0) {
+    console.log('\n失败项：');
+    failed.forEach(f => console.log('  - ' + f));
+    process.exit(1);
+  }
+})();

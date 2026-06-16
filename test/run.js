@@ -35,7 +35,7 @@ function section(title) {
   console.log('='.repeat(60));
 }
 
-function run() {
+async function run() {
   resetStore();
 
   section('1. 主流程：导入样例文档');
@@ -358,6 +358,163 @@ function run() {
   assert(cssContent.includes('.draft-edit-area'), 'style.css 包含草稿编辑区样式');
   assert(cssContent.includes('.action-draft_save'), 'style.css 包含草稿日志样式');
   assert(cssContent.includes('.status-draft'), 'style.css 包含草稿状态样式');
+
+  section('32. HTTP 端点：修订日志筛选查询不混入无关记录');
+  const http = require('http');
+  const PORT = 3299;
+
+  function httpGet(urlPath) {
+    return new Promise((resolve, reject) => {
+      http.get('http://127.0.0.1:' + PORT + urlPath, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
+          catch (e) { resolve({ status: res.statusCode, data: body }); }
+        });
+      }).on('error', reject);
+    });
+  }
+
+  function httpGetRaw(urlPath) {
+    return new Promise((resolve, reject) => {
+      http.get('http://127.0.0.1:' + PORT + urlPath, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve({ status: res.statusCode, data: body }));
+      }).on('error', reject);
+    });
+  }
+
+  resetStore();
+  const app = require('../server');
+  const server = require('http').createServer(app);
+
+  await new Promise((resolve, reject) => {
+    server.listen(PORT, resolve);
+    server.on('error', reject);
+  });
+
+  try {
+    const importRes = await httpGet('/api/documents');
+    const docs = importRes.data;
+    if (docs.length === 0) {
+      const importRes2 = await httpGet('/api/documents');
+    }
+
+    const createRes = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ title: '筛选测试文档', content: '初始内容', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/documents', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    const filterDocId = createRes.document.id;
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ content: '修改后内容', reason: '测试筛选', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/documents/' + filterDocId + '/revisions', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    const filterRevId = (await httpGet('/api/documents/' + filterDocId + '/revisions')).data[0].id;
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ approver: '李审批' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/revisions/' + filterRevId + '/approve', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ documentId: filterDocId, content: '草稿内容', reason: '筛选草稿', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/drafts', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+
+    const allLogsRes = await httpGet('/api/documents/' + filterDocId + '/revision-log');
+    const allLogs = allLogsRes.data;
+    assert(allLogs.length >= 4, '未筛选时日志包含所有记录（导入+提交+发布+草稿）');
+    assert(allLogs.some(l => l.action === 'import'), '未筛选结果包含 import');
+    assert(allLogs.some(l => l.action === 'submit'), '未筛选结果包含 submit');
+    assert(allLogs.some(l => l.action === 'publish'), '未筛选结果包含 publish');
+    assert(allLogs.some(l => l.action === 'draft_save'), '未筛选结果包含 draft_save');
+
+    const statusDraftRes = await httpGet('/api/documents/' + filterDocId + '/revision-log?status=draft');
+    const draftLogs = statusDraftRes.data;
+    assert(draftLogs.length > 0, '按 status=draft 筛选有结果');
+    assert(draftLogs.every(l => l.action === 'draft_save' || l.action === 'draft_delete'), '按 status=draft 筛选后只有 draft_save/draft_delete，不混入 import/submit/publish');
+    assert(!draftLogs.some(l => l.action === 'import'), 'draft 筛选结果中不含 import');
+    assert(!draftLogs.some(l => l.action === 'submit'), 'draft 筛选结果中不含 submit');
+    assert(!draftLogs.some(l => l.action === 'publish'), 'draft 筛选结果中不含 publish');
+
+    const actionSubmitRes = await httpGet('/api/documents/' + filterDocId + '/revision-log?action=submit');
+    const submitLogs = actionSubmitRes.data;
+    assert(submitLogs.length > 0, '按 action=submit 筛选有结果');
+    assert(submitLogs.every(l => l.action === 'submit'), '按 action=submit 筛选后只有 submit');
+    assert(!submitLogs.some(l => l.action === 'import'), 'submit 筛选结果中不含 import');
+    assert(!submitLogs.some(l => l.action === 'publish'), 'submit 筛选结果中不含 publish');
+
+    const operatorZhangRes = await httpGet('/api/documents/' + filterDocId + '/revision-log?operator=' + encodeURIComponent('张编辑'));
+    const zhangLogs = operatorZhangRes.data;
+    assert(zhangLogs.length > 0, '按 operator=张编辑 筛选有结果');
+    assert(zhangLogs.every(l => l.operator === '张编辑'), '按 operator 筛选后只有张编辑的记录');
+    assert(!zhangLogs.some(l => l.operator === '李审批'), '张编辑筛选结果中不含李审批的记录');
+
+    section('33. HTTP 端点：CSV 导出与 JSON 筛选结果一致');
+    const csvRawRes = await httpGetRaw('/api/documents/' + filterDocId + '/revision-log/export.csv?status=draft');
+    const csvData = csvRawRes.data;
+    assert(csvData.includes('时间'), 'CSV 包含表头');
+    assert(csvData.includes('保存草稿'), 'CSV 包含保存草稿记录');
+    const csvLines = csvData.split('\n').filter(l => l.trim() !== '');
+    const csvDataLines = csvLines.slice(1);
+    assert(csvDataLines.length === draftLogs.length, 'CSV 数据行数与 JSON 筛选结果一致（' + csvDataLines.length + ' vs ' + draftLogs.length + '）');
+
+    const csvSubmitRes = await httpGetRaw('/api/documents/' + filterDocId + '/revision-log/export.csv?action=submit');
+    const csvSubmitData = csvSubmitRes.data;
+    const csvSubmitLines = csvSubmitData.split('\n').filter(l => l.trim() !== '');
+    const csvSubmitDataLines = csvSubmitLines.slice(1);
+    assert(csvSubmitDataLines.length === submitLogs.length, 'CSV submit 筛选行数与 JSON 一致（' + csvSubmitDataLines.length + ' vs ' + submitLogs.length + '）');
+
+    section('34. HTTP 端点：重启后再次查询筛选仍然生效');
+    delete require.cache[require.resolve('../lib/store.js')];
+    delete require.cache[require.resolve('../lib/archive.js')];
+
+    const archSvcReloaded = require('../lib/archive');
+    const reloadedDraftLogs = archSvcReloaded.exportRevisionLog(filterDocId, { status: 'draft' });
+    assert(reloadedDraftLogs.every(l => l.action === 'draft_save' || l.action === 'draft_delete'), '重启后按 status=draft 筛选仍然不混入无关记录');
+
+    const reloadedSubmitLogs = archSvcReloaded.exportRevisionLog(filterDocId, { action: 'submit' });
+    assert(reloadedSubmitLogs.every(l => l.action === 'submit'), '重启后按 action=submit 筛选仍然正确');
+
+    const reloadCsv = archSvcReloaded.exportRevisionLogCSV(filterDocId, { status: 'draft' });
+    const reloadCsvLines = reloadCsv.split('\n').filter(l => l.trim() !== '');
+    const reloadCsvDataLines = reloadCsvLines.slice(1);
+    assert(reloadCsvDataLines.length === reloadedDraftLogs.length, '重启后 CSV 行数与 JSON 筛选一致');
+
+  } finally {
+    server.close();
+  }
 
   console.log('\n' + '='.repeat(60));
   console.log(`  测试结果：✅ ${passed} 通过  ❌ ${failed} 失败`);

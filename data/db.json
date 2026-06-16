@@ -1,48 +1,109 @@
 {
   "documents": {
-    "d44c751c-7a13-4614-9a74-b353f0bb227a": {
-      "id": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "title": "信息安全管理制度",
-      "currentVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
-      "createdBy": "命令行测试",
-      "createdAt": "2026-06-16T18:18:55.907Z"
+    "8b561d68-2d4a-492d-81d3-ade897174632": {
+      "id": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "title": "筛选测试文档",
+      "currentVersionId": "1e012d14-498d-4c9a-8bca-8c55a4717d29",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:51:59.026Z"
+    },
+    "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f": {
+      "id": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "title": "review-filter-1781635984821",
+      "currentVersionId": "f77fe9ec-5fae-482c-9037-19be00a04377",
+      "createdBy": "???",
+      "createdAt": "2026-06-16T18:53:04.840Z"
+    },
+    "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0": {
+      "id": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "title": "review-filter-1781636036588",
+      "currentVersionId": "310a2087-40ce-4219-a634-89abbf0422d6",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:53:56.788Z"
+    },
+    "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5": {
+      "id": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "title": "review-app-path-1781636083285",
+      "currentVersionId": "264c1ebd-9923-493a-8d2d-020f9644ef35",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:54:43.452Z"
     }
   },
   "versions": {
-    "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e": {
-      "id": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+    "21cfe995-2534-4f5b-9de1-b13c9843ef09": {
+      "id": "21cfe995-2534-4f5b-9de1-b13c9843ef09",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
       "versionNumber": "1.0",
-      "content": "第一章 总则\r\n\r\n第一条 为加强信息安全管理，保障公司信息资产安全，特制定本制度。\r\n\r\n第二条 本制度适用于公司全体员工及外部合作人员。\r\n\r\n第三条 信息安全管理工作坚持\"预防为主、综合治理\"的原则。\r\n\r\n第二章 管理职责\r\n\r\n第四条 信息技术部负责信息安全技术防护体系的建设与运维。\r\n\r\n第五条 各部门负责人为本部门信息安全第一责任人。\r\n\r\n第六条 全体员工应自觉遵守信息安全相关规定，发现安全隐患应及时报告。\r\n",
-      "createdBy": "命令行测试",
-      "createdAt": "2026-06-16T18:18:55.907Z"
-    },
-    "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6": {
-      "id": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "versionNumber": "1.1",
-      "content": "别人改的新版本内容",
-      "createdBy": "赵编辑",
-      "createdAt": "2026-06-16T18:18:56.116Z"
-    },
-    "e7412f93-ec89-466e-9989-ff48a0e7c8d4": {
-      "id": "e7412f93-ec89-466e-9989-ff48a0e7c8d4",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "versionNumber": "1.2",
-      "content": "编辑员提交的内容",
+      "content": "初始内容",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T18:18:56.126Z"
+      "createdAt": "2026-06-16T18:51:59.026Z"
+    },
+    "1e012d14-498d-4c9a-8bca-8c55a4717d29": {
+      "id": "1e012d14-498d-4c9a-8bca-8c55a4717d29",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "versionNumber": "1.1",
+      "content": "修改后内容",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:51:59.031Z"
+    },
+    "f77fe9ec-5fae-482c-9037-19be00a04377": {
+      "id": "f77fe9ec-5fae-482c-9037-19be00a04377",
+      "documentId": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "versionNumber": "1.0",
+      "content": "alpha\nbeta\n",
+      "createdBy": "???",
+      "createdAt": "2026-06-16T18:53:04.840Z"
+    },
+    "8212a0a5-65e1-466b-96a5-d9806e9905ce": {
+      "id": "8212a0a5-65e1-466b-96a5-d9806e9905ce",
+      "documentId": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "versionNumber": "1.1",
+      "content": "alpha\nbeta\ngamma\n",
+      "createdBy": "???",
+      "createdAt": "2026-06-16T18:53:04.848Z"
+    },
+    "13d34891-6468-47e0-8a3d-43e050f952bb": {
+      "id": "13d34891-6468-47e0-8a3d-43e050f952bb",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "versionNumber": "1.0",
+      "content": "alpha\nbeta\n",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:53:56.788Z"
+    },
+    "310a2087-40ce-4219-a634-89abbf0422d6": {
+      "id": "310a2087-40ce-4219-a634-89abbf0422d6",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "versionNumber": "1.1",
+      "content": "alpha\nbeta\ngamma\n",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:53:56.811Z"
+    },
+    "a775fe97-11db-4b04-a218-e9b9b691a144": {
+      "id": "a775fe97-11db-4b04-a218-e9b9b691a144",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "versionNumber": "1.0",
+      "content": "seed\n",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:54:43.452Z"
+    },
+    "264c1ebd-9923-493a-8d2d-020f9644ef35": {
+      "id": "264c1ebd-9923-493a-8d2d-020f9644ef35",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "versionNumber": "1.1",
+      "content": "seed\nrev\n",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:54:43.464Z"
     }
   },
   "revisions": {
-    "44a970da-6e41-4f12-9241-af8cbdfb5190": {
-      "id": "44a970da-6e41-4f12-9241-af8cbdfb5190",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "oldVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
-      "newVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
+    "02eb5fca-996a-4599-a3ff-2299c0608595": {
+      "id": "02eb5fca-996a-4599-a3ff-2299c0608595",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "oldVersionId": "21cfe995-2534-4f5b-9de1-b13c9843ef09",
+      "newVersionId": "1e012d14-498d-4c9a-8bca-8c55a4717d29",
       "oldVersionNumber": "1.0",
       "newVersionNumber": "1.1",
-      "reason": "别人的修订",
+      "reason": "测试筛选",
       "diff": {
         "hunks": [
           {
@@ -51,132 +112,12 @@
             "lines": [
               {
                 "type": "removed",
-                "content": "第一章 总则\r",
-                "oldLine": 1
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 2
-              },
-              {
-                "type": "removed",
-                "content": "第一条 为加强信息安全管理，保障公司信息资产安全，特制定本制度。\r",
-                "oldLine": 3
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 4
-              },
-              {
-                "type": "removed",
-                "content": "第二条 本制度适用于公司全体员工及外部合作人员。\r",
-                "oldLine": 5
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 6
-              },
-              {
-                "type": "removed",
-                "content": "第三条 信息安全管理工作坚持\"预防为主、综合治理\"的原则。\r",
-                "oldLine": 7
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 8
-              },
-              {
-                "type": "removed",
-                "content": "第二章 管理职责\r",
-                "oldLine": 9
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 10
-              },
-              {
-                "type": "removed",
-                "content": "第四条 信息技术部负责信息安全技术防护体系的建设与运维。\r",
-                "oldLine": 11
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 12
-              },
-              {
-                "type": "removed",
-                "content": "第五条 各部门负责人为本部门信息安全第一责任人。\r",
-                "oldLine": 13
-              },
-              {
-                "type": "removed",
-                "content": "\r",
-                "oldLine": 14
-              },
-              {
-                "type": "removed",
-                "content": "第六条 全体员工应自觉遵守信息安全相关规定，发现安全隐患应及时报告。\r",
-                "oldLine": 15
-              },
-              {
-                "type": "removed",
-                "content": "",
-                "oldLine": 16
-              },
-              {
-                "type": "added",
-                "content": "别人改的新版本内容",
-                "newLine": 1
-              }
-            ]
-          }
-        ],
-        "summary": {
-          "added": 1,
-          "removed": 16,
-          "unchanged": 0
-        },
-        "hasChanges": true,
-        "oldLineCount": 16,
-        "newLineCount": 1
-      },
-      "status": "published",
-      "submittedBy": "赵编辑",
-      "submittedAt": "2026-06-16T18:18:56.116Z",
-      "approvedBy": "李审批",
-      "approvedAt": "2026-06-16T18:18:56.119Z",
-      "publishedAt": "2026-06-16T18:18:56.119Z",
-      "withdrawnAt": null,
-      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e"
-    },
-    "ce07e05d-7874-4706-b741-debfc1934bf9": {
-      "id": "ce07e05d-7874-4706-b741-debfc1934bf9",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "oldVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6",
-      "newVersionId": "e7412f93-ec89-466e-9989-ff48a0e7c8d4",
-      "oldVersionNumber": "1.1",
-      "newVersionNumber": "1.2",
-      "reason": "编辑员提交",
-      "diff": {
-        "hunks": [
-          {
-            "oldStart": 1,
-            "newStart": 1,
-            "lines": [
-              {
-                "type": "removed",
-                "content": "别人改的新版本内容",
+                "content": "初始内容",
                 "oldLine": 1
               },
               {
                 "type": "added",
-                "content": "编辑员提交的内容",
+                "content": "修改后内容",
                 "newLine": 1
               }
             ]
@@ -191,128 +132,395 @@
         "oldLineCount": 1,
         "newLineCount": 1
       },
-      "status": "submitted",
+      "status": "published",
       "submittedBy": "张编辑",
-      "submittedAt": "2026-06-16T18:18:56.126Z",
+      "submittedAt": "2026-06-16T18:51:59.031Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T18:51:59.039Z",
+      "publishedAt": "2026-06-16T18:51:59.039Z",
+      "withdrawnAt": null,
+      "baselineVersionId": "21cfe995-2534-4f5b-9de1-b13c9843ef09"
+    },
+    "20606864-bcb6-47a8-9878-130a66bbcf14": {
+      "id": "20606864-bcb6-47a8-9878-130a66bbcf14",
+      "documentId": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "oldVersionId": "f77fe9ec-5fae-482c-9037-19be00a04377",
+      "newVersionId": "8212a0a5-65e1-466b-96a5-d9806e9905ce",
+      "oldVersionNumber": "1.0",
+      "newVersionNumber": "1.1",
+      "reason": "review submit",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 3,
+            "newStart": 3,
+            "lines": [
+              {
+                "type": "added",
+                "content": "gamma",
+                "newLine": 3
+              },
+              {
+                "type": "context",
+                "content": "",
+                "oldLine": 3,
+                "newLine": 4
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 3
+        },
+        "hasChanges": true,
+        "oldLineCount": 3,
+        "newLineCount": 4
+      },
+      "status": "submitted",
+      "submittedBy": "???",
+      "submittedAt": "2026-06-16T18:53:04.848Z",
       "approvedBy": null,
       "approvedAt": null,
       "publishedAt": null,
       "withdrawnAt": null,
-      "baselineVersionId": "e5afbfaf-1986-47f0-afba-ba37f4b0d4a6"
+      "baselineVersionId": "f77fe9ec-5fae-482c-9037-19be00a04377"
+    },
+    "ed874b5c-b634-45a7-9811-0ded6c2573d3": {
+      "id": "ed874b5c-b634-45a7-9811-0ded6c2573d3",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "oldVersionId": "13d34891-6468-47e0-8a3d-43e050f952bb",
+      "newVersionId": "310a2087-40ce-4219-a634-89abbf0422d6",
+      "oldVersionNumber": "1.0",
+      "newVersionNumber": "1.1",
+      "reason": "review submit",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 3,
+            "newStart": 3,
+            "lines": [
+              {
+                "type": "added",
+                "content": "gamma",
+                "newLine": 3
+              },
+              {
+                "type": "context",
+                "content": "",
+                "oldLine": 3,
+                "newLine": 4
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 3
+        },
+        "hasChanges": true,
+        "oldLineCount": 3,
+        "newLineCount": 4
+      },
+      "status": "published",
+      "submittedBy": "张编辑",
+      "submittedAt": "2026-06-16T18:53:56.811Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T18:53:56.816Z",
+      "publishedAt": "2026-06-16T18:53:56.816Z",
+      "withdrawnAt": null,
+      "baselineVersionId": "13d34891-6468-47e0-8a3d-43e050f952bb"
+    },
+    "1629bd8a-58c7-4a0b-ba9c-39e2260e026b": {
+      "id": "1629bd8a-58c7-4a0b-ba9c-39e2260e026b",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "oldVersionId": "a775fe97-11db-4b04-a218-e9b9b691a144",
+      "newVersionId": "264c1ebd-9923-493a-8d2d-020f9644ef35",
+      "oldVersionNumber": "1.0",
+      "newVersionNumber": "1.1",
+      "reason": "path check",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 2,
+            "newStart": 2,
+            "lines": [
+              {
+                "type": "added",
+                "content": "rev",
+                "newLine": 2
+              },
+              {
+                "type": "context",
+                "content": "",
+                "oldLine": 2,
+                "newLine": 3
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "hasChanges": true,
+        "oldLineCount": 2,
+        "newLineCount": 3
+      },
+      "status": "published",
+      "submittedBy": "张编辑",
+      "submittedAt": "2026-06-16T18:54:43.464Z",
+      "approvedBy": "李审批",
+      "approvedAt": "2026-06-16T18:54:43.470Z",
+      "publishedAt": "2026-06-16T18:54:43.470Z",
+      "withdrawnAt": null,
+      "baselineVersionId": "a775fe97-11db-4b04-a218-e9b9b691a144"
     }
   },
   "revisionLogs": [
     {
-      "id": "abecd68b-c9c1-4051-96cc-d0d2d0693f6f",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
+      "id": "4b8bb4b4-b27a-420c-8b5a-547b6fe94fa7",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
       "action": "import",
-      "operator": "命令行测试",
-      "timestamp": "2026-06-16T18:18:55.907Z",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:51:59.026Z",
       "detail": {
-        "versionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+        "versionId": "21cfe995-2534-4f5b-9de1-b13c9843ef09",
         "versionNumber": "1.0"
       }
     },
     {
-      "id": "6e2bca30-bda6-4460-ae8d-0701d8203c6c",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "draftId": "ae864459-a231-4a91-87e0-d303dd7ab595",
-      "action": "draft_save",
-      "operator": "张编辑",
-      "timestamp": "2026-06-16T18:18:56.109Z",
-      "detail": {
-        "baselineVersion": "1.0",
-        "isNew": true
-      }
-    },
-    {
-      "id": "2eb38c01-4e25-45a1-a051-b891c9ba7334",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "draftId": "cca1c4a7-a4f0-442e-b44a-09267b106900",
-      "action": "draft_save",
-      "operator": "王编辑",
-      "timestamp": "2026-06-16T18:18:56.114Z",
-      "detail": {
-        "baselineVersion": "1.0",
-        "isNew": true
-      }
-    },
-    {
-      "id": "c91b3032-cc15-4263-a1b5-d3b176563c31",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "id": "35f339bc-7180-43c0-95d4-805f30905193",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "revisionId": "02eb5fca-996a-4599-a3ff-2299c0608595",
       "action": "submit",
-      "operator": "赵编辑",
-      "timestamp": "2026-06-16T18:18:56.116Z",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:51:59.031Z",
       "detail": {
         "from": "1.0",
         "to": "1.1",
-        "reason": "别人的修订",
+        "reason": "测试筛选",
         "baselineVersion": "1.0"
       }
     },
     {
-      "id": "ee6ed68c-5610-409c-86b0-6734066ee0dd",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
+      "id": "2d2035e2-eee6-4d2e-8beb-106997486666",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "revisionId": "02eb5fca-996a-4599-a3ff-2299c0608595",
       "action": "publish",
       "operator": "李审批",
-      "timestamp": "2026-06-16T18:18:56.119Z",
+      "timestamp": "2026-06-16T18:51:59.039Z",
       "detail": {
         "from": "1.0",
         "to": "1.1",
-        "reason": "别人的修订"
+        "reason": "测试筛选"
       }
     },
     {
-      "id": "b6c8b7b7-922d-43bf-a32e-6024248cd2c2",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "revisionId": "ce07e05d-7874-4706-b741-debfc1934bf9",
+      "id": "d8caba95-8cfd-408c-a767-8672172410df",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "draftId": "cf553026-f071-4e3c-a4bb-df3c276ee9a2",
+      "action": "draft_save",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:51:59.042Z",
+      "detail": {
+        "baselineVersion": "1.1",
+        "isNew": true
+      }
+    },
+    {
+      "id": "a7acda4d-a2fa-425c-8c32-53c9e443e54c",
+      "documentId": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "action": "import",
+      "operator": "???",
+      "timestamp": "2026-06-16T18:53:04.840Z",
+      "detail": {
+        "versionId": "f77fe9ec-5fae-482c-9037-19be00a04377",
+        "versionNumber": "1.0"
+      }
+    },
+    {
+      "id": "cbea34fa-d34d-451c-8c57-9254c61ba461",
+      "documentId": "be98c8ad-4e99-4dfd-98bc-bd826f13ce1f",
+      "revisionId": "20606864-bcb6-47a8-9878-130a66bbcf14",
+      "action": "submit",
+      "operator": "???",
+      "timestamp": "2026-06-16T18:53:04.848Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "review submit",
+        "baselineVersion": "1.0"
+      }
+    },
+    {
+      "id": "f44bd43b-bafa-4481-924a-ac6cdfddfdfd",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "action": "import",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:53:56.788Z",
+      "detail": {
+        "versionId": "13d34891-6468-47e0-8a3d-43e050f952bb",
+        "versionNumber": "1.0"
+      }
+    },
+    {
+      "id": "97774c48-5bb3-4937-89a3-38afe73dac6d",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "revisionId": "ed874b5c-b634-45a7-9811-0ded6c2573d3",
       "action": "submit",
       "operator": "张编辑",
-      "timestamp": "2026-06-16T18:18:56.126Z",
+      "timestamp": "2026-06-16T18:53:56.811Z",
       "detail": {
-        "from": "1.1",
-        "to": "1.2",
-        "reason": "编辑员提交",
-        "baselineVersion": "1.1"
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "review submit",
+        "baselineVersion": "1.0"
+      }
+    },
+    {
+      "id": "9c2955eb-3b41-4e01-9aa0-aab02d433fb2",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "revisionId": "ed874b5c-b634-45a7-9811-0ded6c2573d3",
+      "action": "publish",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T18:53:56.816Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "review submit"
+      }
+    },
+    {
+      "id": "09a80534-1ab3-4868-b5ce-30e221fc07b9",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "draftId": "fad0e021-2aac-43b8-a4bb-680a2025faab",
+      "action": "draft_save",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:53:56.820Z",
+      "detail": {
+        "baselineVersion": "1.1",
+        "isNew": true
+      }
+    },
+    {
+      "id": "b9a457a1-325c-4c41-b12b-56f4d91ccb03",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "action": "import",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:54:43.452Z",
+      "detail": {
+        "versionId": "a775fe97-11db-4b04-a218-e9b9b691a144",
+        "versionNumber": "1.0"
+      }
+    },
+    {
+      "id": "1608807e-631b-4adc-8952-ea987280b138",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "revisionId": "1629bd8a-58c7-4a0b-ba9c-39e2260e026b",
+      "action": "submit",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:54:43.464Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "path check",
+        "baselineVersion": "1.0"
+      }
+    },
+    {
+      "id": "69d654d3-9f06-4d42-b7a6-d4f4581f896c",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "revisionId": "1629bd8a-58c7-4a0b-ba9c-39e2260e026b",
+      "action": "publish",
+      "operator": "李审批",
+      "timestamp": "2026-06-16T18:54:43.470Z",
+      "detail": {
+        "from": "1.0",
+        "to": "1.1",
+        "reason": "path check"
+      }
+    },
+    {
+      "id": "64f72738-e3ac-4b96-9d44-9a01fb04da72",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "draftId": "3d7434ed-2b31-4bcb-8a01-e7b8f0287de6",
+      "action": "draft_save",
+      "operator": "张编辑",
+      "timestamp": "2026-06-16T18:54:43.476Z",
+      "detail": {
+        "baselineVersion": "1.1",
+        "isNew": true
       }
     }
   ],
   "archives": [
     {
-      "id": "4dfecc5c-c0b6-4668-9806-2207be816e6e",
-      "revisionId": "44a970da-6e41-4f12-9241-af8cbdfb5190",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "versionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
+      "id": "596daa11-c079-41e3-91b6-aebc2e869c8c",
+      "revisionId": "02eb5fca-996a-4599-a3ff-2299c0608595",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "versionId": "21cfe995-2534-4f5b-9de1-b13c9843ef09",
       "versionNumber": "1.0",
-      "reason": "别人的修订",
-      "archivedAt": "2026-06-16T18:18:56.119Z"
+      "reason": "测试筛选",
+      "archivedAt": "2026-06-16T18:51:59.039Z"
+    },
+    {
+      "id": "0e60ac2f-a022-4234-b06d-e7e11617252e",
+      "revisionId": "ed874b5c-b634-45a7-9811-0ded6c2573d3",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "versionId": "13d34891-6468-47e0-8a3d-43e050f952bb",
+      "versionNumber": "1.0",
+      "reason": "review submit",
+      "archivedAt": "2026-06-16T18:53:56.816Z"
+    },
+    {
+      "id": "c5dc480d-d2a6-4400-bfb7-34ac41bbc368",
+      "revisionId": "1629bd8a-58c7-4a0b-ba9c-39e2260e026b",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "versionId": "a775fe97-11db-4b04-a218-e9b9b691a144",
+      "versionNumber": "1.0",
+      "reason": "path check",
+      "archivedAt": "2026-06-16T18:54:43.470Z"
     }
   ],
   "drafts": {
-    "ae864459-a231-4a91-87e0-d303dd7ab595": {
-      "id": "ae864459-a231-4a91-87e0-d303dd7ab595",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
-      "baselineVersionNumber": "1.0",
-      "content": "这是草稿内容\n第二行草稿",
-      "reason": "草稿测试理由",
+    "cf553026-f071-4e3c-a4bb-df3c276ee9a2": {
+      "id": "cf553026-f071-4e3c-a4bb-df3c276ee9a2",
+      "documentId": "8b561d68-2d4a-492d-81d3-ade897174632",
+      "baselineVersionId": "1e012d14-498d-4c9a-8bca-8c55a4717d29",
+      "baselineVersionNumber": "1.1",
+      "content": "草稿内容",
+      "reason": "筛选草稿",
       "createdBy": "张编辑",
-      "createdAt": "2026-06-16T18:18:56.109Z",
-      "updatedAt": "2026-06-16T18:18:56.109Z",
+      "createdAt": "2026-06-16T18:51:59.042Z",
+      "updatedAt": "2026-06-16T18:51:59.042Z",
       "status": "draft"
     },
-    "cca1c4a7-a4f0-442e-b44a-09267b106900": {
-      "id": "cca1c4a7-a4f0-442e-b44a-09267b106900",
-      "documentId": "d44c751c-7a13-4614-9a74-b353f0bb227a",
-      "baselineVersionId": "5c11d54f-0b3c-40b5-a4ed-e48682e44e8e",
-      "baselineVersionNumber": "1.0",
-      "content": "冲突草稿内容",
-      "reason": "冲突测试",
-      "createdBy": "王编辑",
-      "createdAt": "2026-06-16T18:18:56.114Z",
-      "updatedAt": "2026-06-16T18:18:56.114Z",
+    "fad0e021-2aac-43b8-a4bb-680a2025faab": {
+      "id": "fad0e021-2aac-43b8-a4bb-680a2025faab",
+      "documentId": "d5fd37d0-d6ce-4667-b09b-f7129cf5eaa0",
+      "baselineVersionId": "310a2087-40ce-4219-a634-89abbf0422d6",
+      "baselineVersionNumber": "1.1",
+      "content": "alpha\nbeta\ndraft\n",
+      "reason": "review draft",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:53:56.820Z",
+      "updatedAt": "2026-06-16T18:53:56.820Z",
+      "status": "draft"
+    },
+    "3d7434ed-2b31-4bcb-8a01-e7b8f0287de6": {
+      "id": "3d7434ed-2b31-4bcb-8a01-e7b8f0287de6",
+      "documentId": "e282a5b0-c6ed-4dea-bf2c-4532cfb29fc5",
+      "baselineVersionId": "264c1ebd-9923-493a-8d2d-020f9644ef35",
+      "baselineVersionNumber": "1.1",
+      "content": "seed\ndraft\n",
+      "reason": "path draft",
+      "createdBy": "张编辑",
+      "createdAt": "2026-06-16T18:54:43.476Z",
+      "updatedAt": "2026-06-16T18:54:43.476Z",
       "status": "draft"
     }
   },

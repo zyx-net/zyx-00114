@@ -96,11 +96,6 @@ router.get('/documents/:docId/archives', (req, res) => {
   res.json(archives);
 });
 
-router.get('/documents/:docId/revision-log', (req, res) => {
-  const logs = archSvc.exportRevisionLog(req.params.docId);
-  res.json(logs);
-});
-
 router.get('/consistency', (req, res) => {
   const result = archSvc.verifyConsistency();
   res.json(result);
