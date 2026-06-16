@@ -202,6 +202,17 @@
       <button id="exportLogBtn" class="btn btn-primary">查询日志</button>
       <button id="exportCsvBtn" class="btn btn-secondary">导出 CSV</button>
       <button id="checkConsistencyBtn" class="btn btn-secondary">一致性校验</button>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee">
+        <h3>数据导出 / 导入</h3>
+        <p style="color:#888;font-size:13px">导出完整数据为 JSON 文件，可在其他环境导入恢复。导入时按 ID 去重，已有数据不会被覆盖，不同操作人的草稿和快照不会串线。</p>
+        <button id="exportDataBtn" class="btn btn-primary">导出全部数据 (JSON)</button>
+        <span style="margin:0 8px"></span>
+        <label class="btn btn-secondary" style="display:inline-block;cursor:pointer">
+          导入数据 (JSON)
+          <input type="file" id="importDataFile" accept=".json" style="display:none">
+        </label>
+        <div id="importDataResult" class="result-area"></div>
+      </div>
       <div id="logResult"></div>
       <div id="consistencyResult" class="result-area"></div>
     </section>

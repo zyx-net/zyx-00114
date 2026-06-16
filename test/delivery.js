@@ -61,6 +61,7 @@ check(readme.includes('撤回'), 'README 提到了撤回行为');
 check(readme.includes('草稿'), 'README 提到了草稿箱');
 check(readme.includes('快照'), 'README 提到了草稿快照历史');
 check(readme.includes('基线版本冲突'), 'README 提到了基线版本冲突拦截');
+check(readme.includes('导入'), 'README 提到了数据导入');
 check(readme.includes('权限'), 'README 提到了权限边界');
 check(readme.includes('CSV'), 'README 提到了 CSV 导出');
 check(readme.includes('筛选'), 'README 提到了日志筛选');
@@ -372,6 +373,81 @@ check(!rebootRestored.error, '重启后恢复快照无错误：' + (rebootRestor
 check(rebootRestored.draft, '重启后仍然可以正常恢复快照');
 check(rebootRestored.draft.content === '持久化草稿 B', '重启后恢复的快照内容正确');
 
+// ---- 12.6 快照读取权限：非 owner 不能拿到内容/理由/创建人 ----
+console.log('\n【12.6】快照读取权限：非 owner 被脱敏');
+const permViewDoc = persistDocSvc.importDocument('快照读取权限文档', '初始', '张编辑');
+const permViewDraft = persistSvc.saveDraft(permViewDoc.document.id, '权限草稿内容', '权限草稿理由', '张编辑');
+persistSvc.updateDraft(permViewDraft.draft.id, '权限草稿更新', '权限更新理由', '张编辑');
+
+const ownerViewSnaps = persistSvc.getSnapshotsByDraft(permViewDraft.draft.id, '张编辑');
+check(ownerViewSnaps.length >= 1, 'owner 能看到快照列表');
+check(ownerViewSnaps[0].content === '权限草稿内容', 'owner 能看到快照内容');
+check(ownerViewSnaps[0].reason === '权限草稿理由', 'owner 能看到快照理由');
+check(ownerViewSnaps[0].createdBy === '张编辑', 'owner 能看到快照创建人');
+check(!ownerViewSnaps[0]._redacted, 'owner 的快照无 _redacted 标记');
+
+const otherViewSnaps = persistSvc.getSnapshotsByDraft(permViewDraft.draft.id, '李审批');
+check(otherViewSnaps.length >= 1, '非 owner 也能看到快照条目数量');
+check(otherViewSnaps[0]._redacted === true, '非 owner 的快照有 _redacted 标记');
+check(otherViewSnaps[0].content === undefined, '非 owner 不能看到快照内容');
+check(otherViewSnaps[0].reason === undefined, '非 owner 不能看到快照理由');
+check(otherViewSnaps[0].createdBy === undefined, '非 owner 不能看到快照创建人');
+
+const otherSingleSnap = persistSvc.getSnapshot(ownerViewSnaps[0].id, '李审批');
+check(otherSingleSnap._redacted === true, '非 owner 通过 getSnapshot 返回 _redacted');
+check(otherSingleSnap.content === undefined, '非 owner 通过 getSnapshot 不能看到内容');
+
+// ---- 12.7 导出再导入：草稿和快照不串线 ----
+console.log('\n【12.7】导出再导入：草稿和快照不串线');
+const storeForExport = require(path.join(ROOT, 'lib/store'));
+const exportDoc1 = persistDocSvc.importDocument('导出文档 A', '内容 A', '张编辑');
+persistSvc.saveDraft(exportDoc1.document.id, '张编辑导出草稿', '导出理由 A', '张编辑');
+const exportDraftAId = Object.values(storeForExport.read().drafts).find(d => d.documentId === exportDoc1.document.id).id;
+persistSvc.updateDraft(exportDraftAId, '张编辑导出草稿更新', '导出理由 A2', '张编辑');
+
+const exportDoc2 = persistDocSvc.importDocument('导出文档 B', '内容 B', '王编辑');
+persistSvc.saveDraft(exportDoc2.document.id, '王编辑导出草稿', '导出理由 B', '王编辑');
+
+const fullExport = storeForExport.exportAll();
+const expDraftA = Object.values(fullExport.drafts).find(d => d.createdBy === '张编辑' && d.documentId === exportDoc1.document.id);
+const expDraftB = Object.values(fullExport.drafts).find(d => d.createdBy === '王编辑' && d.documentId === exportDoc2.document.id);
+check(expDraftA && expDraftA.content === '张编辑导出草稿更新', '导出中张编辑草稿内容正确');
+check(expDraftB && expDraftB.content === '王编辑导出草稿', '导出中王编辑草稿内容正确');
+
+const expSnapA = Object.values(fullExport.draftSnapshots).find(s => s.createdBy === '张编辑' && s.documentId === exportDoc1.document.id);
+check(expSnapA && expSnapA.content === '张编辑导出草稿', '导出中张编辑快照内容正确');
+check(expSnapA && expSnapA.draftId === exportDraftAId, '导出中快照与草稿关联正确');
+
+resetData();
+const importResult = storeForExport.importData(fullExport);
+check(importResult.success === true, '导入成功');
+
+const importedData = storeForExport.read();
+const impDraftA = Object.values(importedData.drafts).find(d => d.createdBy === '张编辑' && d.documentId === exportDoc1.document.id);
+const impDraftB = Object.values(importedData.drafts).find(d => d.createdBy === '王编辑' && d.documentId === exportDoc2.document.id);
+check(impDraftA && impDraftA.content === '张编辑导出草稿更新', '导入后张编辑草稿内容正确');
+check(impDraftB && impDraftB.content === '王编辑导出草稿', '导入后王编辑草稿内容正确');
+
+const impSnapA = Object.values(importedData.draftSnapshots).find(s => s.createdBy === '张编辑' && s.documentId === exportDoc1.document.id);
+check(impSnapA && impSnapA.content === '张编辑导出草稿', '导入后快照归属不串线');
+check(impSnapA && impSnapA.draftId === impDraftA.id, '导入后快照与草稿关联正确');
+
+// ---- 12.8 重启后导入结果仍正确 ----
+console.log('\n【12.8】重启后导入结果仍正确');
+delete require.cache[require.resolve(path.join(ROOT, 'lib/store.js'))];
+delete require.cache[require.resolve(path.join(ROOT, 'lib/draft.js'))];
+
+const rebootImportStore = require(path.join(ROOT, 'lib/store'));
+const rebootImportDraft = require(path.join(ROOT, 'lib/draft'));
+const rebootImportData = rebootImportStore.read();
+const rebootImpDraftA = Object.values(rebootImportData.drafts).find(d => d.createdBy === '张编辑' && d.documentId === exportDoc1.document.id);
+check(rebootImpDraftA && rebootImpDraftA.content === '张编辑导出草稿更新', '重启后导入的草稿内容正确');
+check(rebootImpDraftA && rebootImpDraftA.reason === '导出理由 A2', '重启后导入的草稿理由正确');
+
+const rebootImpSnaps = rebootImportDraft.getSnapshotsByDraft(rebootImpDraftA.id, '张编辑');
+check(rebootImpSnaps.length >= 1, '重启后导入的快照数量正确');
+check(rebootImpSnaps[0].content === '张编辑导出草稿', '重启后导入的快照内容正确');
+
 // ---- 13. README 写的端口和 server.js 实际一致 ----
 console.log('\n【13】README 写的端口与 server.js 实际一致');
 const serverCode = readFile('server.js');
@@ -395,6 +471,9 @@ check(indexHtml.includes('logFilterOperator'), 'index.html 日志区有操作人
 check(indexHtml.includes('logFilterAction'), 'index.html 日志区有动作筛选下拉');
 check(indexHtml.includes('logFilterStatus'), 'index.html 日志区有状态筛选下拉');
 check(indexHtml.includes('exportCsvBtn'), 'index.html 有 CSV 导出按钮');
+check(indexHtml.includes('exportDataBtn'), 'index.html 有数据导出按钮');
+check(indexHtml.includes('importDataFile'), 'index.html 有数据导入文件输入');
+check(indexHtml.includes('importDataResult'), 'index.html 有数据导入结果区域');
 
 // ---- 15. 前端逻辑链路：app.js 接通了草稿/冲突/筛选/权限 ----
 console.log('\n【15】前端逻辑链路：app.js 接通了草稿/冲突/筛选/权限');
@@ -415,6 +494,10 @@ check(appJs.includes('logFilterOperator'), 'app.js 读取操作人筛选参数')
 check(appJs.includes('export.csv'), 'app.js 构造 CSV 下载链接');
 check(appJs.includes('isOwner') || appJs.includes('createdBy'), 'app.js 判断草稿归属控制编辑权限');
 check(appJs.includes("role === 'approver'"), 'app.js 根据角色控制审批按钮');
+check(appJs.includes('/export'), 'app.js 调用数据导出 API');
+check(appJs.includes('/import'), 'app.js 调用数据导入 API');
+check(appJs.includes('importDataFile'), 'app.js 处理数据导入文件选择');
+check(appJs.includes('_redacted'), 'app.js 处理快照脱敏标记');
 
 // ---- 16. 前端样式：style.css 有草稿/冲突/筛选相关样式 ----
 console.log('\n【16】前端样式：style.css 有草稿/冲突/筛选相关样式');

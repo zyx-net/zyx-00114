@@ -668,6 +668,42 @@
     }
   });
 
+  $('#exportDataBtn').addEventListener('click', () => {
+    const url = API + '/export';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'data-export.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('数据已导出为 JSON 文件');
+  });
+
+  $('#importDataFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const el = $('#importDataResult');
+    try {
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      const { ok, data } = await api('/import', {
+        method: 'POST',
+        body: JSON.stringify(imported)
+      });
+      if (ok && data.success) {
+        showResult(el, '数据导入成功！已有数据未被覆盖，新增数据已合并。', 'success');
+        toast('数据导入成功');
+        loadDocuments();
+        loadDrafts();
+      } else {
+        showResult(el, '导入失败: ' + (data.error || '未知错误'), 'error');
+      }
+    } catch (err) {
+      showResult(el, '导入失败: 无法解析 JSON 文件 — ' + err.message, 'error');
+    }
+    e.target.value = '';
+  });
+
   $('#refreshSnapshotsBtn').addEventListener('click', loadSnapshots);
 
   async function loadSnapshots() {
@@ -676,7 +712,7 @@
     container.innerHTML = '<p style="color:#999">加载中...</p>';
     $('#snapshotConflictWarning').style.display = 'none';
 
-    const { data: snapshots } = await api('/drafts/' + currentDraftId + '/snapshots');
+    const { data: snapshots } = await api('/drafts/' + currentDraftId + '/snapshots?operator=' + encodeURIComponent(getOperator()));
     if (!snapshots || snapshots.length === 0) {
       container.innerHTML = '<p style="color:#999">暂无快照，下次保存草稿时自动创建</p>';
       return;
@@ -686,22 +722,24 @@
     snapshots.forEach(s => {
       const div = document.createElement('div');
       div.className = 'snapshot-card';
-      const preview = s.content.length > 80 ? s.content.slice(0, 80) + '...' : s.content;
+      const isOwner = !s._redacted;
+      const preview = isOwner && s.content ? (s.content.length > 80 ? s.content.slice(0, 80) + '...' : s.content) : '（无权限查看）';
+      const reason = isOwner ? escapeHtml(s.reason || '无') : '（无权限查看）';
       div.innerHTML = `
         <div class="snapshot-header">
           <span class="snapshot-time">${fmtTime(s.createdAt)}</span>
           <span class="draft-baseline">基线 v${s.baselineVersionNumber}</span>
           <span class="snapshot-actions">
-            <button class="btn btn-sm btn-secondary" data-action="view" data-id="${s.id}">查看</button>
+            ${isOwner ? `<button class="btn btn-sm btn-secondary" data-action="view" data-id="${s.id}">查看</button>
             <button class="btn btn-sm btn-primary" data-action="restore" data-id="${s.id}">恢复</button>
-            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${s.id}">删除</button>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${s.id}">删除</button>` : '<span style="color:#999;font-size:12px">非草稿创建人，仅可见摘要</span>'}
           </span>
         </div>
-        <div class="snapshot-reason"><strong>理由：</strong>${escapeHtml(s.reason || '无')}</div>
+        <div class="snapshot-reason"><strong>理由：</strong>${reason}</div>
         <div class="snapshot-preview"><strong>内容预览：</strong>${escapeHtml(preview)}</div>
-        <div class="snapshot-detail" id="snapshot-detail-${s.id}" style="display:none;margin-top:8px">
-          <div class="snapshot-full-content" style="white-space:pre-wrap;background:#f5f5f5;padding:8px;border-radius:4px;max-height:200px;overflow:auto">${escapeHtml(s.content)}</div>
-        </div>`;
+        ${isOwner ? `<div class="snapshot-detail" id="snapshot-detail-${s.id}" style="display:none;margin-top:8px">
+          <div class="snapshot-full-content" style="white-space:pre-wrap;background:#f5f5f5;padding:8px;border-radius:4px;max-height:200px;overflow:auto">${escapeHtml(s.content || '')}</div>
+        </div>` : ''}`;
       container.appendChild(div);
     });
 

@@ -6,6 +6,25 @@ const archSvc = require('../lib/archive');
 const diffSvc = require('../lib/diff');
 const draftSvc = require('../lib/draft');
 const authSvc = require('../lib/auth');
+const store = require('../lib/store');
+
+router.get('/export', (req, res) => {
+  const data = store.exportAll();
+  res.setHeader('Content-Disposition', 'attachment; filename="data-export.json"');
+  res.json(data);
+});
+
+router.post('/import', (req, res) => {
+  const imported = req.body;
+  if (!imported || typeof imported !== 'object') {
+    return res.status(400).json({ error: 'Invalid import data' });
+  }
+  const result = store.importData(imported);
+  if (result.error) {
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
 
 router.post('/documents', (req, res) => {
   const { title, content, operator } = req.body;
@@ -185,12 +204,14 @@ router.post('/drafts/:draftId/submit', (req, res) => {
 });
 
 router.get('/drafts/:draftId/snapshots', (req, res) => {
-  const snapshots = draftSvc.getSnapshotsByDraft(req.params.draftId);
+  const operator = req.query.operator;
+  const snapshots = draftSvc.getSnapshotsByDraft(req.params.draftId, operator || null);
   res.json(snapshots);
 });
 
 router.get('/snapshots/:snapshotId', (req, res) => {
-  const snapshot = draftSvc.getSnapshot(req.params.snapshotId);
+  const operator = req.query.operator;
+  const snapshot = draftSvc.getSnapshot(req.params.snapshotId, operator || null);
   if (!snapshot) return res.status(404).json({ error: 'Snapshot not found' });
   res.json(snapshot);
 });

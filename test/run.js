@@ -535,7 +535,108 @@ async function run() {
   assert(cascadeSnapshotsAfter.length === 0, '删除草稿后关联快照被级联清理');
   }
 
-  section('40. HTTP 端点：修订日志筛选查询不混入无关记录');
+  {
+  section('40. 快照读取权限：非 owner 读取被脱敏');
+  resetStore();
+  const viewDoc = docSvc.importDocument('快照读取权限文档', '初始', '张编辑');
+  const viewDraft = draftSvc.saveDraft(viewDoc.document.id, '张编辑的草稿', '张编辑理由', '张编辑');
+  draftSvc.updateDraft(viewDraft.draft.id, '张编辑更新', '更新理由', '张编辑');
+
+  const ownerSnaps = draftSvc.getSnapshotsByDraft(viewDraft.draft.id, '张编辑');
+  assert(ownerSnaps.length === 1, 'owner 能看到快照列表');
+  assert(ownerSnaps[0].content === '张编辑的草稿', 'owner 能看到快照内容');
+  assert(ownerSnaps[0].reason === '张编辑理由', 'owner 能看到快照理由');
+  assert(ownerSnaps[0].createdBy === '张编辑', 'owner 能看到快照创建人');
+  assert(!ownerSnaps[0]._redacted, 'owner 的快照没有 _redacted 标记');
+
+  const otherSnaps = draftSvc.getSnapshotsByDraft(viewDraft.draft.id, '李审批');
+  assert(otherSnaps.length === 1, '非 owner 也能看到快照条目数量');
+  assert(otherSnaps[0]._redacted === true, '非 owner 的快照有 _redacted 标记');
+  assert(otherSnaps[0].content === undefined, '非 owner 不能看到快照内容');
+  assert(otherSnaps[0].reason === undefined, '非 owner 不能看到快照理由');
+  assert(otherSnaps[0].createdBy === undefined, '非 owner 不能看到快照创建人');
+
+  const ownerSnap = draftSvc.getSnapshot(ownerSnaps[0].id, '张编辑');
+  assert(ownerSnap.content === '张编辑的草稿', 'owner 通过 getSnapshot 能看到内容');
+  assert(!ownerSnap._redacted, 'owner getSnapshot 无 _redacted');
+
+  const otherSnap = draftSvc.getSnapshot(ownerSnaps[0].id, '李审批');
+  assert(otherSnap._redacted === true, '非 owner 通过 getSnapshot 返回 _redacted');
+  assert(otherSnap.content === undefined, '非 owner 通过 getSnapshot 不能看到内容');
+
+  const noOpSnap = draftSvc.getSnapshot(ownerSnaps[0].id);
+  assert(noOpSnap.content === '张编辑的草稿', '不传 operator 时返回完整数据（向后兼容）');
+  }
+
+  {
+  section('41. 导出再导入：草稿和快照不串线');
+  resetStore();
+  const exportDoc1 = docSvc.importDocument('导出文档 A', '内容 A', '张编辑');
+  draftSvc.saveDraft(exportDoc1.document.id, '张编辑草稿 A', '理由 A', '张编辑');
+  draftSvc.updateDraft(
+    Object.values(require('../lib/store').read().drafts).find(d => d.documentId === exportDoc1.document.id).id,
+    '张编辑草稿 A 更新', '理由 A2', '张编辑'
+  );
+
+  const exportDoc2 = docSvc.importDocument('导出文档 B', '内容 B', '王编辑');
+  draftSvc.saveDraft(exportDoc2.document.id, '王编辑草稿 B', '理由 B', '王编辑');
+
+  const storeModule = require('../lib/store');
+  const exportedData = storeModule.exportAll();
+
+  const draftA = Object.values(exportedData.drafts).find(d => d.createdBy === '张编辑');
+  const draftB = Object.values(exportedData.drafts).find(d => d.createdBy === '王编辑');
+  assert(draftA && draftA.content === '张编辑草稿 A 更新', '导出中张编辑草稿内容正确');
+  assert(draftB && draftB.content === '王编辑草稿 B', '导出中王编辑草稿内容正确');
+
+  const snapA = Object.values(exportedData.draftSnapshots).find(s => s.createdBy === '张编辑');
+  const snapB = Object.values(exportedData.draftSnapshots).find(s => s.createdBy === '王编辑');
+  assert(snapA && snapA.content === '张编辑草稿 A', '导出中张编辑快照内容正确');
+  assert(snapB === undefined, '王编辑没有快照（首次保存不创建快照）');
+
+  resetStore();
+  const importResult = storeModule.importData(exportedData);
+  assert(importResult.success === true, '导入成功');
+
+  const importedStore = storeModule.read();
+  const importedDraftA = Object.values(importedStore.drafts).find(d => d.createdBy === '张编辑');
+  const importedDraftB = Object.values(importedStore.drafts).find(d => d.createdBy === '王编辑');
+  assert(importedDraftA && importedDraftA.content === '张编辑草稿 A 更新', '导入后张编辑草稿内容正确');
+  assert(importedDraftB && importedDraftB.content === '王编辑草稿 B', '导入后王编辑草稿内容正确');
+
+  const importedSnapA = Object.values(importedStore.draftSnapshots).find(s => s.createdBy === '张编辑');
+  assert(importedSnapA && importedSnapA.content === '张编辑草稿 A', '导入后张编辑快照内容正确，归属不串线');
+  assert(importedSnapA.draftId === importedDraftA.id, '导入后快照与草稿关联正确');
+  }
+
+  {
+  section('42. 重启后导入结果仍正确');
+  resetStore();
+  const rebootDoc = docSvc.importDocument('重启导入文档', '重启内容', '张编辑');
+  draftSvc.saveDraft(rebootDoc.document.id, '重启草稿', '重启理由', '张编辑');
+
+  const storeMod = require('../lib/store');
+  const exported = storeMod.exportAll();
+
+  resetStore();
+  storeMod.importData(exported);
+
+  delete require.cache[require.resolve('../lib/store.js')];
+  delete require.cache[require.resolve('../lib/draft.js')];
+
+  const rebootStore = require('../lib/store');
+  const rebootDraft = require('../lib/draft');
+
+  const rebootData = rebootStore.read();
+  const rebootDraftObj = Object.values(rebootData.drafts).find(d => d.createdBy === '张编辑');
+  assert(rebootDraftObj && rebootDraftObj.content === '重启草稿', '重启后导入的草稿内容正确');
+  assert(rebootDraftObj && rebootDraftObj.reason === '重启理由', '重启后导入的草稿理由正确');
+
+  const rebootSnaps = rebootDraft.getSnapshotsByDraft(rebootDraftObj.id, '张编辑');
+  assert(rebootSnaps.length === 0, '重启后导入的草稿首次保存无快照（正确）');
+  }
+
+  section('43. HTTP 端点：修订日志筛选查询不混入无关记录');
   const http = require('http');
   const PORT = 3299;
 
@@ -657,7 +758,7 @@ async function run() {
     assert(zhangLogs.every(l => l.operator === '张编辑'), '按 operator 筛选后只有张编辑的记录');
     assert(!zhangLogs.some(l => l.operator === '李审批'), '张编辑筛选结果中不含李审批的记录');
 
-    section('33. HTTP 端点：CSV 导出与 JSON 筛选结果一致');
+    section('36. HTTP 端点：CSV 导出与 JSON 筛选结果一致');
     const csvRawRes = await httpGetRaw('/api/documents/' + filterDocId + '/revision-log/export.csv?status=draft');
     const csvData = csvRawRes.data;
     assert(csvData.includes('时间'), 'CSV 包含表头');
@@ -672,7 +773,7 @@ async function run() {
     const csvSubmitDataLines = csvSubmitLines.slice(1);
     assert(csvSubmitDataLines.length === submitLogs.length, 'CSV submit 筛选行数与 JSON 一致（' + csvSubmitDataLines.length + ' vs ' + submitLogs.length + '）');
 
-    section('34. HTTP 端点：重启后再次查询筛选仍然生效');
+    section('37. HTTP 端点：重启后再次查询筛选仍然生效');
     delete require.cache[require.resolve('../lib/store.js')];
     delete require.cache[require.resolve('../lib/archive.js')];
 
@@ -688,7 +789,7 @@ async function run() {
     const reloadCsvDataLines = reloadCsvLines.slice(1);
     assert(reloadCsvDataLines.length === reloadedDraftLogs.length, '重启后 CSV 行数与 JSON 筛选一致');
 
-    section('35. HTTP 端点：草稿快照列表、恢复、删除、冲突拦截');
+    section('38. HTTP 端点：草稿快照列表、恢复、删除、冲突拦截');
 
     const snapDocHttp = await new Promise((resolve, reject) => {
       const postData = JSON.stringify({ title: 'HTTP 快照文档', content: '初始内容', operator: '张编辑' });
@@ -805,6 +906,52 @@ async function run() {
       req.end();
     });
     assert(approverRestoreRes.status === 403, '审批人恢复别人快照返回 403');
+
+    section('39. HTTP 端点：快照读取权限（非 owner 被脱敏）');
+    const ownerSnapList = await httpGet('/api/drafts/' + snapHttpDraftId + '/snapshots?operator=' + encodeURIComponent('张编辑'));
+    const ownerSnapItems = ownerSnapList.data;
+    assert(ownerSnapItems.length > 0, 'owner 通过 HTTP 能看到快照');
+    assert(!ownerSnapItems[0]._redacted, 'owner 的快照无 _redacted');
+    assert(ownerSnapItems[0].content !== undefined, 'owner 能看到快照内容');
+
+    const otherSnapList = await httpGet('/api/drafts/' + snapHttpDraftId + '/snapshots?operator=' + encodeURIComponent('李审批'));
+    const otherSnapItems = otherSnapList.data;
+    assert(otherSnapItems.length > 0, '非 owner 也能看到快照条目');
+    assert(otherSnapItems[0]._redacted === true, '非 owner 的快照有 _redacted 标记');
+    assert(otherSnapItems[0].content === undefined, '非 owner 通过 HTTP 不能看到快照内容');
+
+    const otherSnapDetail = await httpGet('/api/snapshots/' + ownerSnapItems[0].id + '?operator=' + encodeURIComponent('李审批'));
+    assert(otherSnapDetail.data._redacted === true, '非 owner 通过 GET /snapshots/:id 也不能看到内容');
+    assert(otherSnapDetail.data.content === undefined, '非 owner 通过 GET /snapshots/:id 不能看到快照内容');
+
+    section('40. HTTP 端点：导出再导入完整链路');
+    const exportRes = await httpGet('/api/export');
+    assert(exportRes.data.documents !== undefined, '导出包含 documents');
+    assert(exportRes.data.drafts !== undefined, '导出包含 drafts');
+    assert(exportRes.data.draftSnapshots !== undefined, '导出包含 draftSnapshots');
+    assert(exportRes.data.revisionLogs !== undefined, '导出包含 revisionLogs');
+
+    const exportStr = JSON.stringify(exportRes.data);
+    assert(exportStr.includes('张编辑'), '导出数据包含张编辑');
+
+    const dataImportRes = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify(exportRes.data);
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/import', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    assert(dataImportRes.status === 200, '导入返回 200');
+    assert(dataImportRes.data.success === true, '导入成功');
+
+    const afterImport = await httpGet('/api/export');
+    const afterImportDraft = afterImport.data.drafts[snapHttpDraftId];
+    assert(afterImportDraft && afterImportDraft.createdBy === '张编辑', '导入后张编辑草稿仍在');
+    assert(afterImportDraft.content === 'HTTP 草稿内容 2', '导入后张编辑草稿内容未被覆盖（ID去重）');
 
   } finally {
     server.close();
