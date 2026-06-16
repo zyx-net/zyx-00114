@@ -109,6 +109,14 @@
         </div>
         <div id="draftConflictWarning" class="conflict-warning" style="display:none"></div>
         <div id="draftResult" class="result-area"></div>
+
+        <h3 style="margin-top:20px">快照历史</h3>
+        <div class="form-group">
+          <button id="refreshSnapshotsBtn" class="btn btn-secondary">刷新快照</button>
+          <span class="meta" style="color:#888;margin-left:8px">每次保存自动创建快照，保留最近 10 次</span>
+        </div>
+        <div id="snapshotList" class="snapshot-list"></div>
+        <div id="snapshotConflictWarning" class="conflict-warning" style="display:none;margin-top:12px"></div>
       </div>
     </section>
 
@@ -175,6 +183,9 @@
             <option value="withdraw">撤回</option>
             <option value="draft_save">保存草稿</option>
             <option value="draft_delete">删除草稿</option>
+            <option value="draft_snapshot_restore">恢复草稿快照</option>
+            <option value="draft_snapshot_restore_conflict">快照恢复冲突拦截</option>
+            <option value="draft_snapshot_delete">删除草稿快照</option>
           </select>
         </div>
         <div class="form-group">

@@ -5,7 +5,23 @@ const apiRouter = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 3200;
 
-app.use(express.json({ limit: '10mb' }));
+app.use((req, res, next) => {
+  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    let raw = '';
+    req.on('data', chunk => raw += chunk);
+    req.on('end', () => {
+      try {
+        req.body = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    req.body = req.body || {};
+    next();
+  }
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', apiRouter);

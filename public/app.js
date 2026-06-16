@@ -280,11 +280,13 @@
     $('#draftContent').value = draft.content || '';
     $('#draftEditArea').style.display = 'block';
     $('#draftConflictWarning').style.display = 'none';
+    $('#snapshotConflictWarning').style.display = 'none';
 
     const isOwner = draft.createdBy === getOperator();
     $('#draftUpdateBtn').style.display = isOwner ? '' : 'none';
     $('#draftDeleteBtn').style.display = isOwner ? '' : 'none';
     $('#draftSubmitBtn').style.display = isOwner ? '' : 'none';
+    $('#refreshSnapshotsBtn').style.display = isOwner ? '' : 'none';
 
     if (!isOwner) {
       $('#draftResult').textContent = '此草稿由 ' + draft.createdBy + ' 创建，您只能查看';
@@ -298,6 +300,12 @@
         '此草稿基于版本 <strong>v' + conflict.baselineVersion + '</strong>，但文档当前版本已更新为 <strong>v' + conflict.currentVersion + '</strong>。<br>' +
         '提交此草稿将被拦截。请基于最新版本重新创建草稿。';
       warningEl.style.display = 'block';
+    }
+
+    if (isOwner) {
+      loadSnapshots();
+    } else {
+      $('#snapshotList').innerHTML = '<p style="color:#999">仅草稿创建者可查看和管理快照</p>';
     }
 
     loadDrafts();
@@ -315,9 +323,10 @@
     });
     const el = $('#draftResult');
     if (ok) {
-      showResult(el, '草稿已更新', 'success');
+      showResult(el, '草稿已更新，快照已自动创建', 'success');
       toast('草稿已保存');
       loadDrafts();
+      loadSnapshots();
     } else {
       showResult(el, '更新失败: ' + (data.message || data.error), 'error');
     }
@@ -582,7 +591,8 @@
       div.className = 'log-entry action-' + log.action;
       const actionLabel = {
         import: '导入', submit: '提交修订', publish: '审批发布', withdraw: '撤回',
-        draft_save: '保存草稿', draft_delete: '删除草稿'
+        draft_save: '保存草稿', draft_delete: '删除草稿',
+        draft_snapshot_restore: '恢复草稿快照', draft_snapshot_restore_conflict: '快照恢复冲突拦截', draft_snapshot_delete: '删除草稿快照'
       }[log.action] || log.action;
 
       let detail = '';
@@ -601,6 +611,15 @@
         }
         if (log.detail.fromDraft) {
           detail += ' | 来源: 草稿';
+        }
+        if (log.detail.snapshotId) {
+          detail += ` | 快照ID: ${log.detail.snapshotId.slice(0, 8)}...`;
+        }
+        if (log.detail.snapshotBaselineVersion) {
+          detail += ` | 快照基线: v${log.detail.snapshotBaselineVersion}`;
+        }
+        if (log.detail.currentVersion) {
+          detail += ` | 当前版本: v${log.detail.currentVersion}`;
         }
       }
 
@@ -648,6 +667,98 @@
       showResult(el, '一致性校验失败：\n' + data.issues.join('\n'), 'error');
     }
   });
+
+  $('#refreshSnapshotsBtn').addEventListener('click', loadSnapshots);
+
+  async function loadSnapshots() {
+    if (!currentDraftId) return;
+    const container = $('#snapshotList');
+    container.innerHTML = '<p style="color:#999">加载中...</p>';
+    $('#snapshotConflictWarning').style.display = 'none';
+
+    const { data: snapshots } = await api('/drafts/' + currentDraftId + '/snapshots');
+    if (!snapshots || snapshots.length === 0) {
+      container.innerHTML = '<p style="color:#999">暂无快照，下次保存草稿时自动创建</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+    snapshots.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'snapshot-card';
+      const preview = s.content.length > 80 ? s.content.slice(0, 80) + '...' : s.content;
+      div.innerHTML = `
+        <div class="snapshot-header">
+          <span class="snapshot-time">${fmtTime(s.createdAt)}</span>
+          <span class="draft-baseline">基线 v${s.baselineVersionNumber}</span>
+          <span class="snapshot-actions">
+            <button class="btn btn-sm btn-secondary" data-action="view" data-id="${s.id}">查看</button>
+            <button class="btn btn-sm btn-primary" data-action="restore" data-id="${s.id}">恢复</button>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${s.id}">删除</button>
+          </span>
+        </div>
+        <div class="snapshot-reason"><strong>理由：</strong>${escapeHtml(s.reason || '无')}</div>
+        <div class="snapshot-preview"><strong>内容预览：</strong>${escapeHtml(preview)}</div>
+        <div class="snapshot-detail" id="snapshot-detail-${s.id}" style="display:none;margin-top:8px">
+          <div class="snapshot-full-content" style="white-space:pre-wrap;background:#f5f5f5;padding:8px;border-radius:4px;max-height:200px;overflow:auto">${escapeHtml(s.content)}</div>
+        </div>`;
+      container.appendChild(div);
+    });
+
+    container.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const action = btn.dataset.action;
+        const snapshotId = btn.dataset.id;
+        if (action === 'view') toggleSnapshotDetail(snapshotId);
+        else if (action === 'restore') restoreSnapshot(snapshotId);
+        else if (action === 'delete') deleteSnapshot(snapshotId);
+      });
+    });
+  }
+
+  function toggleSnapshotDetail(snapshotId) {
+    const el = document.getElementById('snapshot-detail-' + snapshotId);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function restoreSnapshot(snapshotId) {
+    if (!confirm('确定恢复到此快照？当前草稿内容将先自动保存为快照。')) return;
+    const { ok, status, data } = await api('/snapshots/' + snapshotId + '/restore', {
+      method: 'POST',
+      body: JSON.stringify({ operator: getOperator() })
+    });
+    const el = $('#draftResult');
+    if (ok) {
+      $('#draftReason').value = data.draft.reason || '';
+      $('#draftContent').value = data.draft.content || '';
+      showResult(el, '快照恢复成功，内容已加载', 'success');
+      toast('快照已恢复');
+      loadSnapshots();
+    } else if (status === 409) {
+      const warningEl = $('#snapshotConflictWarning');
+      warningEl.innerHTML = '<strong>⚠ 快照恢复被拦截（基线版本冲突）</strong><br>' +
+        (data.message || '快照基线与当前文档版本不一致') + '<br>' +
+        '请基于最新版本重新创建草稿。';
+      warningEl.style.display = 'block';
+      showResult(el, '恢复被拦截: ' + (data.message || '基线版本冲突'), 'error');
+    } else {
+      showResult(el, '恢复失败: ' + (data.message || data.error), 'error');
+    }
+  }
+
+  async function deleteSnapshot(snapshotId) {
+    if (!confirm('确定删除此快照？此操作不可撤销。')) return;
+    const { ok, data } = await api('/snapshots/' + snapshotId, {
+      method: 'DELETE',
+      body: JSON.stringify({ operator: getOperator() })
+    });
+    if (ok) {
+      toast('快照已删除');
+      loadSnapshots();
+    } else {
+      toast('删除失败: ' + (data.message || data.error), 'error');
+    }
+  }
 
   loadDocuments();
 })();

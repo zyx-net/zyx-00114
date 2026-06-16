@@ -359,7 +359,183 @@ async function run() {
   assert(cssContent.includes('.action-draft_save'), 'style.css 包含草稿日志样式');
   assert(cssContent.includes('.status-draft'), 'style.css 包含草稿状态样式');
 
-  section('32. HTTP 端点：修订日志筛选查询不混入无关记录');
+  {
+  section('32. 草稿快照：多次保存自动创建快照');
+  resetStore();
+  const snapDoc = docSvc.importDocument('快照测试文档', '初始内容 v1', '张编辑');
+  const snapDocId = snapDoc.document.id;
+
+  const snapDraft1 = draftSvc.saveDraft(snapDocId, '草稿内容 1', '快照测试理由 1', '张编辑');
+  assert(snapDraft1.draft !== undefined, '首次保存草稿成功');
+  const snapDraftId = snapDraft1.draft.id;
+
+  let snapshotsAfterFirst = draftSvc.getSnapshotsByDraft(snapDraftId);
+  assert(snapshotsAfterFirst.length === 0, '首次保存草稿不创建快照（无历史内容）');
+
+  const snapDraft2 = draftSvc.updateDraft(snapDraftId, '草稿内容 2', '快照测试理由 2', '张编辑');
+  assert(snapDraft2.draft !== undefined, '第一次更新草稿成功');
+  let snapshotsAfterUpdate1 = draftSvc.getSnapshotsByDraft(snapDraftId);
+  assert(snapshotsAfterUpdate1.length === 1, '第一次更新后有 1 个快照');
+  assert(snapshotsAfterUpdate1[0].content === '草稿内容 1', '快照保留了更新前的内容');
+  assert(snapshotsAfterUpdate1[0].reason === '快照测试理由 1', '快照保留了更新前的理由');
+  assert(snapshotsAfterUpdate1[0].createdBy === '张编辑', '快照创建人正确');
+  assert(snapshotsAfterUpdate1[0].baselineVersionNumber === '1.0', '快照基线版本正确');
+
+  draftSvc.updateDraft(snapDraftId, '草稿内容 3', '快照测试理由 3', '张编辑');
+  draftSvc.updateDraft(snapDraftId, '草稿内容 4', '快照测试理由 4', '张编辑');
+  let snapshotsAfter3 = draftSvc.getSnapshotsByDraft(snapDraftId);
+  assert(snapshotsAfter3.length === 3, '3 次更新后有 3 个快照');
+  assert(snapshotsAfter3[0].content === '草稿内容 3', '最新快照排在最前');
+  assert(snapshotsAfter3[2].content === '草稿内容 1', '最早快照排在最后');
+
+  section('33. 草稿快照：恢复快照到草稿');
+  const restored = draftSvc.restoreSnapshot(snapshotsAfter3[1].id, '张编辑');
+  assert(restored.draft !== undefined, '快照恢复成功');
+  assert(restored.draft.content === '草稿内容 2', '恢复后草稿内容为快照内容');
+  assert(restored.draft.reason === '快照测试理由 2', '恢复后草稿理由为快照理由');
+
+  const snapshotsAfterRestore = draftSvc.getSnapshotsByDraft(snapDraftId);
+  assert(snapshotsAfterRestore.length >= 4, '恢复前自动为当前内容创建了新快照，快照数增加');
+
+  const draftAfterRestore = draftSvc.getDraft(snapDraftId);
+  assert(draftAfterRestore.content === '草稿内容 2', '草稿实际内容已更新为快照内容');
+
+  section('34. 草稿快照：冲突拦截 - 正式版本前进后恢复被拦下');
+  resetStore();
+  const conflictDoc = docSvc.importDocument('冲突恢复文档', '初始内容', '张编辑');
+  const conflictDocId = conflictDoc.document.id;
+
+  const snapConflictDraft = draftSvc.saveDraft(conflictDocId, '我的草稿内容', '草稿理由', '张编辑');
+  const snapConflictDraftId = snapConflictDraft.draft.id;
+
+  draftSvc.updateDraft(snapConflictDraftId, '更新后的草稿内容', '更新后的理由', '张编辑');
+  const conflictSnapshots = draftSvc.getSnapshotsByDraft(snapConflictDraftId);
+  assert(conflictSnapshots.length === 1, '草稿有 1 个快照');
+  const conflictSnapshotId = conflictSnapshots[0].id;
+
+  const otherRev = revSvc.createRevision(conflictDocId, '别人改的正式版本', '别人的修订理由', '王编辑');
+  archSvc.approveAndPublish(otherRev.revision.id, '李审批');
+  const docAfterPublish = docSvc.getDocument(conflictDocId);
+  assert(docAfterPublish.currentVersion.versionNumber === '1.1', '正式版本已前进到 1.1');
+
+  const blockedRestore = draftSvc.restoreSnapshot(conflictSnapshotId, '张编辑');
+  assert(blockedRestore.error === 'BASELINE_CONFLICT', '基线版本冲突时快照恢复被拦截');
+  assert(blockedRestore.message && blockedRestore.message.includes('拦截'), '拦截错误有明确提示');
+  assert(blockedRestore.detail && blockedRestore.detail.snapshotBaselineVersion === '1.0', '拦截错误返回了快照基线版本');
+  assert(blockedRestore.detail && blockedRestore.detail.currentVersion === '1.1', '拦截错误返回了当前版本');
+
+  const conflictLogs = archSvc.exportRevisionLog(conflictDocId, { action: 'draft_snapshot_restore_conflict' });
+  assert(conflictLogs.length === 1, '冲突拦截写入了修订日志');
+
+  const draftAfterBlocked = draftSvc.getDraft(snapConflictDraftId);
+  assert(draftAfterBlocked.content === '更新后的草稿内容', '被拦截后草稿内容未被改动');
+
+  section('35. 草稿快照：权限边界 - 审批人不能恢复/删除别人的快照');
+  resetStore();
+  const permDoc = docSvc.importDocument('权限快照文档', '初始内容', '张编辑');
+  const permDocId = permDoc.document.id;
+
+  const permDraft = draftSvc.saveDraft(permDocId, '张编辑的草稿', '张编辑的理由', '张编辑');
+  draftSvc.updateDraft(permDraft.draft.id, '张编辑更新后的内容', '更新理由', '张编辑');
+  const permSnapshots = draftSvc.getSnapshotsByDraft(permDraft.draft.id);
+  assert(permSnapshots.length === 1, '有一个快照');
+  const permSnapshotId = permSnapshots[0].id;
+
+  const approverRestore = draftSvc.restoreSnapshot(permSnapshotId, '李审批');
+  assert(approverRestore.error === 'PERMISSION_DENIED', '审批人不能恢复别人的快照');
+
+  const approverDeleteSnap = draftSvc.deleteSnapshot(permSnapshotId, '李审批');
+  assert(approverDeleteSnap.error === 'PERMISSION_DENIED', '审批人不能删除别人的快照');
+
+  const ownerDeleteSnap = draftSvc.deleteSnapshot(permSnapshotId, '张编辑');
+  assert(ownerDeleteSnap.success === true, '快照创建者可以删除自己的快照');
+
+  const permSnapshotsAfter = draftSvc.getSnapshotsByDraft(permDraft.draft.id);
+  assert(permSnapshotsAfter.length === 0, '删除后快照列表为空');
+
+  const snapDeleteLogs = archSvc.exportRevisionLog(permDocId, { action: 'draft_snapshot_delete' });
+  assert(snapDeleteLogs.length === 1, '删除快照写入了修订日志');
+
+  section('36. 草稿快照：重启后快照仍然存在（持久化）');
+  resetStore();
+  const persistDoc = docSvc.importDocument('持久化快照文档', '初始内容', '张编辑');
+  const persistDocId = persistDoc.document.id;
+
+  const persistDraft = draftSvc.saveDraft(persistDocId, '草稿内容 A', '理由 A', '张编辑');
+  draftSvc.updateDraft(persistDraft.draft.id, '草稿内容 B', '理由 B', '张编辑');
+  draftSvc.updateDraft(persistDraft.draft.id, '草稿内容 C', '理由 C', '张编辑');
+  const persistSnapshotsBefore = draftSvc.getSnapshotsByDraft(persistDraft.draft.id);
+  assert(persistSnapshotsBefore.length === 2, '重启前有 2 个快照');
+  const persistDraftId = persistDraft.draft.id;
+
+  delete require.cache[require.resolve('../lib/store.js')];
+  delete require.cache[require.resolve('../lib/draft.js')];
+
+  const storePersistReloaded = require('../lib/store');
+  const draftSvcPersistReloaded = require('../lib/draft');
+
+  const persistSnapshotsAfter = draftSvcPersistReloaded.getSnapshotsByDraft(persistDraftId);
+  assert(persistSnapshotsAfter.length === 2, '重启后快照仍然存在（2 个）');
+  assert(persistSnapshotsAfter[0].content === '草稿内容 B', '重启后快照内容正确（最新）');
+  assert(persistSnapshotsAfter[1].content === '草稿内容 A', '重启后快照内容正确（最早）');
+  assert(persistSnapshotsAfter[0].baselineVersionNumber === '1.0', '重启后快照基线版本正确');
+  assert(persistSnapshotsAfter[0].createdBy === '张编辑', '重启后快照创建人正确');
+
+  const restoredAfterReload = draftSvcPersistReloaded.restoreSnapshot(persistSnapshotsAfter[1].id, '张编辑');
+  assert(restoredAfterReload.draft !== undefined, '重启后恢复快照成功');
+  assert(restoredAfterReload.draft.content === '草稿内容 A', '重启后恢复的快照内容正确');
+
+  section('37. 草稿快照：保留最近 N 个（超过自动清理最旧）');
+  resetStore();
+  const trimDoc = docSvc.importDocument('快照裁剪文档', '初始内容', '张编辑');
+  const trimDocId = trimDoc.document.id;
+
+  const trimDraft = draftSvc.saveDraft(trimDocId, '内容 0', '理由 0', '张编辑');
+  const trimDraftId = trimDraft.draft.id;
+
+  for (let i = 1; i <= 12; i++) {
+    draftSvc.updateDraft(trimDraftId, `内容 ${i}`, `理由 ${i}`, '张编辑');
+  }
+
+  const trimSnapshots = draftSvc.getSnapshotsByDraft(trimDraftId);
+  assert(trimSnapshots.length === draftSvc.MAX_SNAPSHOTS_PER_DRAFT, `超过上限后裁剪为 ${draftSvc.MAX_SNAPSHOTS_PER_DRAFT} 个快照`);
+  assert(trimSnapshots[0].content === '内容 11', '最新快照保留');
+  assert(trimSnapshots[trimSnapshots.length - 1].content === '内容 2', '最旧的快照被裁剪掉（内容 0 和 1 被移除）');
+
+  section('38. 草稿快照：日志和 CSV 导出包含快照动作');
+  resetStore();
+  const logDoc = docSvc.importDocument('快照日志文档', '初始内容', '张编辑');
+  const logDocId = logDoc.document.id;
+
+  const logDraft = draftSvc.saveDraft(logDocId, '草稿 v1', '理由 v1', '张编辑');
+  draftSvc.updateDraft(logDraft.draft.id, '草稿 v2', '理由 v2', '张编辑');
+  const logSnapshots = draftSvc.getSnapshotsByDraft(logDraft.draft.id);
+  draftSvc.restoreSnapshot(logSnapshots[0].id, '张编辑');
+  draftSvc.deleteSnapshot(logSnapshots[0].id, '张编辑');
+
+  const allSnapLogs = archSvc.exportRevisionLog(logDocId, { status: 'draft' });
+  assert(allSnapLogs.some(l => l.action === 'draft_snapshot_restore'), '日志包含 draft_snapshot_restore 动作');
+  assert(allSnapLogs.some(l => l.action === 'draft_snapshot_delete'), '日志包含 draft_snapshot_delete 动作');
+
+  const csvSnapContent = archSvc.exportRevisionLogCSV(logDocId);
+  assert(csvSnapContent.includes('快照ID'), 'CSV 包含快照ID列');
+  assert(csvSnapContent.includes('恢复草稿快照'), 'CSV 包含"恢复草稿快照"记录');
+  assert(csvSnapContent.includes('删除草稿快照'), 'CSV 包含"删除草稿快照"记录');
+
+  section('39. 草稿快照：删除草稿时快照也被清理');
+  resetStore();
+  const cascadeDoc = docSvc.importDocument('级联删除文档', '初始内容', '张编辑');
+  const cascadeDraft = draftSvc.saveDraft(cascadeDoc.document.id, '内容 A', '理由 A', '张编辑');
+  draftSvc.updateDraft(cascadeDraft.draft.id, '内容 B', '理由 B', '张编辑');
+  const cascadeSnapshotCountBefore = draftSvc.getSnapshotsByDraft(cascadeDraft.draft.id).length;
+  assert(cascadeSnapshotCountBefore === 1, '删除草稿前有 1 个快照');
+
+  draftSvc.deleteDraft(cascadeDraft.draft.id, '张编辑');
+  const cascadeSnapshotsAfter = draftSvc.getSnapshotsByDraft(cascadeDraft.draft.id);
+  assert(cascadeSnapshotsAfter.length === 0, '删除草稿后关联快照被级联清理');
+  }
+
+  section('40. HTTP 端点：修订日志筛选查询不混入无关记录');
   const http = require('http');
   const PORT = 3299;
 
@@ -511,6 +687,124 @@ async function run() {
     const reloadCsvLines = reloadCsv.split('\n').filter(l => l.trim() !== '');
     const reloadCsvDataLines = reloadCsvLines.slice(1);
     assert(reloadCsvDataLines.length === reloadedDraftLogs.length, '重启后 CSV 行数与 JSON 筛选一致');
+
+    section('35. HTTP 端点：草稿快照列表、恢复、删除、冲突拦截');
+
+    const snapDocHttp = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ title: 'HTTP 快照文档', content: '初始内容', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/documents', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    const snapHttpDocId = snapDocHttp.document.id;
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ documentId: snapHttpDocId, content: 'HTTP 草稿内容 1', reason: 'HTTP 草稿理由 1', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/drafts', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+
+    const draftsAfterFirst = await httpGet('/api/drafts?documentId=' + snapHttpDocId);
+    const snapHttpDraftId = draftsAfterFirst.data[0].id;
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ content: 'HTTP 草稿内容 2', reason: 'HTTP 草稿理由 2', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/drafts/' + snapHttpDraftId, method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+
+    const snapListRes = await httpGet('/api/drafts/' + snapHttpDraftId + '/snapshots');
+    assert(snapListRes.data.length === 1, 'HTTP 获取快照列表返回 1 条快照');
+    assert(snapListRes.data[0].content === 'HTTP 草稿内容 1', '快照内容正确');
+    const snapHttpId = snapListRes.data[0].id;
+
+    const approverDeleteBefore = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ operator: '李审批' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/snapshots/' + snapHttpId, method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    assert(approverDeleteBefore.status === 403, '审批人删除别人快照返回 403');
+
+    const deleteSnapRes = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/snapshots/' + snapHttpId, method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    assert(deleteSnapRes.status === 200, 'HTTP 删除快照成功（200）');
+    assert(deleteSnapRes.data.success === true, '删除快照返回 success');
+
+    const snapListAfterDel = await httpGet('/api/drafts/' + snapHttpDraftId + '/snapshots');
+    assert(snapListAfterDel.data.length === 0, '删除后快照列表为空');
+
+    await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ content: 'HTTP 草稿内容 1', reason: 'HTTP 草稿理由 1', operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/drafts/' + snapHttpDraftId, method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(JSON.parse(body)));
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    const snapListForRestore = await httpGet('/api/drafts/' + snapHttpDraftId + '/snapshots');
+    const snapHttpId2 = snapListForRestore.data[0].id;
+
+    const restoreRes = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ operator: '张编辑' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/snapshots/' + snapHttpId2 + '/restore', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    assert(restoreRes.status === 200, 'HTTP 恢复快照成功（200）');
+    assert(restoreRes.data.draft.content === 'HTTP 草稿内容 2', '恢复后草稿内容正确');
+
+    const approverRestoreRes = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ operator: '李审批' });
+      const req = http.request({ hostname: '127.0.0.1', port: PORT, path: '/api/snapshots/' + snapHttpId2 + '/restore', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+    assert(approverRestoreRes.status === 403, '审批人恢复别人快照返回 403');
 
   } finally {
     server.close();

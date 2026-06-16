@@ -184,6 +184,44 @@ router.post('/drafts/:draftId/submit', (req, res) => {
   res.status(201).json(result);
 });
 
+router.get('/drafts/:draftId/snapshots', (req, res) => {
+  const snapshots = draftSvc.getSnapshotsByDraft(req.params.draftId);
+  res.json(snapshots);
+});
+
+router.get('/snapshots/:snapshotId', (req, res) => {
+  const snapshot = draftSvc.getSnapshot(req.params.snapshotId);
+  if (!snapshot) return res.status(404).json({ error: 'Snapshot not found' });
+  res.json(snapshot);
+});
+
+router.post('/snapshots/:snapshotId/restore', (req, res) => {
+  const { operator } = req.body;
+  const result = draftSvc.restoreSnapshot(req.params.snapshotId, operator || 'unknown');
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BASELINE_CONFLICT') {
+      return res.status(409).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.delete('/snapshots/:snapshotId', (req, res) => {
+  const { operator } = req.body;
+  const result = draftSvc.deleteSnapshot(req.params.snapshotId, operator || 'unknown');
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') {
+      return res.status(403).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
 router.get('/revision-log', (req, res) => {
   const { documentId, action, operator, status } = req.query;
   const filters = {};
