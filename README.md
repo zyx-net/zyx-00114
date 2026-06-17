@@ -255,6 +255,143 @@ node scripts/import-log.js --playback <batchId> 李审批
 
 新增「**批次追溯**」标签页，把日志导入、回放记录、快照审计和权限说明串成一条可独立验收的链路。
 
+### 6.9 回放授权保险箱（独立验收链路）
+
+新增「**回放授权保险箱**」模块，把批次回放、日志索引、备注查看和审计导出串成一条能独立验收的链路。
+
+**核心设计原则**：
+- **批次归属**：每个保险箱批次有明确的 `ownerId`，只有 owner 和审批员能访问完整内容
+- **权限硬边界**：非 owner 不管请求里带什么 viewer、筛选参数或旧缓存命中，都只能拿到脱敏后的摘要、状态和最小批次元数据
+- **防止数据泄露**：非 owner 不能通过查询组合把明细漏出来（如批量查询日志 ID、拼接回放记录等）
+- **持久化**：批次归属、权限判断、脱敏规则和冲突日志全部落到持久层，服务重启后结果完全一致
+
+**6.9.1 保险箱批次实体**
+
+每个导入批次可升级为保险箱批次，落库以下信息：
+- `vaultBatchId`：保险箱批次 UUID
+- `sourceBatchId`：关联的导入批次 ID
+- `ownerId`：所有者（创建人）
+- `status`：状态（active/archived）
+- `notes`：备注（仅 owner 可编辑）
+- `customRedactionRules`：自定义脱敏规则
+- `accessCount` / `playbackCount` / `exportCount`：访问统计
+- `lastAccessedAt` / `lastPlaybackAt` / `lastExportAt`：最后操作时间
+
+**6.9.2 权限控制矩阵**
+
+| 操作 | owner | 审批员 | 非 owner 编辑员 | 匿名/陌生人 |
+|---|---|---|---|---|
+| 创建保险箱批次 | ❌ | ✅（创建后成为 owner） | ❌ | ❌ |
+| 查看批次详情 | ✅（完整） | ✅（完整） | ⚠（脱敏摘要） | ⚠（脱敏摘要） |
+| 查看批次日志 | ✅（完整） | ✅（完整） | ⚠（脱敏摘要） | ⚠（脱敏摘要） |
+| 查看回放记录 | ✅（完整） | ✅（完整） | ⚠（脱敏摘要） | ⚠（脱敏摘要） |
+| 执行回放 | ✅ | ✅ | ❌ | ❌ |
+| 查看备注 | ✅ | ✅ | ⚠（null） | ⚠（null） |
+| 编辑备注 | ✅ | ❌ | ❌ | ❌ |
+| 查看操作轨迹 | ✅ | ✅ | ❌ | ❌ |
+| 导出审计包 | ✅ | ✅ | ❌ | ❌ |
+| 导入审计包 | ❌ | ✅ | ❌ | ❌ |
+
+**脱敏规则**（`_redacted: true` + `_redactionLevel`）：
+- **摘要级（summary）**：保留 `batchId/vaultBatchId/importedAt/importedBy/ownerId/recordCount/insertedCount/conflictCount/invalidCount/status/sourceFile/conflictStrategy/playbackCount` 等元数据；`summary` 仅保留 `actionBreakdown` 键名和计数、`timeRange`；移除 `detail/content/reason/notes/conflicts/invalidLogs/items/logIds` 等敏感字段
+- **完全级（full）**：仅保留 ID 和状态，所有其他字段移除
+- 脱敏函数：`applyRedaction(obj, level)` 统一处理所有字段和嵌套对象，确保非 owner 不能通过任何接口拿到明细
+
+**6.9.2.1 权限函数说明（`lib/auth.js`）**
+
+| 函数 | 说明 |
+|---|---|
+| `canCreateVaultBatch(operator)` | 是否可创建保险箱批次（仅审批员） |
+| `canViewVaultDetail(vaultOwnerId, viewer)` | 是否可查看批次完整详情（owner 或审批员） |
+| `canExportVaultAudit(vaultOwnerId, viewer)` | 是否可导出审计包（owner 或审批员） |
+| `canImportVaultPackage(operator)` | 是否可导入审计包（仅审批员） |
+| `canViewVaultAccessTrail(vaultOwnerId, viewer)` | 是否可查看操作轨迹（owner 或审批员） |
+| `canUpdateVaultNotes(vaultOwnerId, viewer)` | 是否可更新备注（仅 owner） |
+| `canPlaybackVaultBatch(vaultOwnerId, viewer)` | 是否可执行回放（owner 或审批员） |
+
+**6.9.3 操作轨迹审计**
+
+每次访问都会记录到 `vaultAccessLogs[]`：
+- `action`：view / view_logs / view_playbacks / playback / view_notes / update_notes / export / create
+- `granted`：是否授权
+- `viewer`：查看人
+- `accessedAt`：访问时间
+- `details`：附加信息（如回放记录 ID、导出指纹等）
+
+owner 和审批员可通过 `/trail` 接口查看完整操作轨迹。
+
+**6.9.4 审计包导出与导入**
+
+**导出**（`GET /api/vault/batches/:id/export`）：
+- 导出内容：保险箱批次信息 + 源批次信息 + 所有日志 + 所有回放记录 + 操作轨迹 + 脱敏规则
+- 指纹验证：导出时计算整个包的 SHA256 指纹，防止篡改
+- 文件名：`vault-audit-{vaultBatchId[:8]}-{timestamp}.json`
+
+**导入**（`POST /api/vault/import`）：
+- 指纹校验：导入时重新计算指纹，与包内指纹比对，不一致则拒绝（`PACKAGE_TAMPERED`）
+- 重复检测：按指纹检测是否已导入过
+  - `reject`（默认）：返回 `409 CONFLICT`，冲突类型为 `PACKAGE_DUPLICATE`，明确提示冲突，不静默覆盖
+  - `skip`：静默跳过，返回 `skipped: true`
+  - `force`：强制导入，记录 `force: true`，使用新的 `vaultBatchId`
+- 冲突日志：所有冲突记录到 `conflicts[]`，包含冲突类型（`PACKAGE_DUPLICATE` / `VAULT_BATCH_DUPLICATE` / `SOURCE_BATCH_EXISTS`）、现有记录信息、处理方式
+- 处理日志：导入结果记录到 `vaultImportPackages[]`，永久保留，可追溯
+
+**6.9.5 防止数据泄露的防护措施**
+
+1. **viewer 参数强制校验**：所有接口都检查 `viewer`/`operator` 参数，未传则按匿名处理（全部脱敏）
+2. **批量查询拦截**：非 owner 查询时，无论用什么筛选参数，都只返回脱敏结果
+3. **缓存穿透防护**：每次请求都实时做权限判断，不依赖可能泄露的缓存
+4. **ID 枚举防护**：非 owner 即使猜对 `vaultBatchId`，也只能拿到脱敏摘要，拿不到明细
+5. **日志拼接防护**：非 owner 不能通过多次查询不同接口拼接出完整信息（所有接口返回的脱敏级别一致）
+
+**6.9.6 命令行支持**
+
+```bash
+# 创建保险箱批次（仅审批员）
+node scripts/import-log.js --vault-create <sourceBatchId> 李审批 --notes "审计专用"
+
+# 查看保险箱批次列表
+node scripts/import-log.js --vault-list
+
+# 查看保险箱批次详情（根据权限返回完整或脱敏）
+node scripts/import-log.js --vault-detail <vaultBatchId> 李审批
+node scripts/import-log.js --vault-detail <vaultBatchId> 张编辑  # 脱敏
+
+# 查看保险箱批次日志
+node scripts/import-log.js --vault-logs <vaultBatchId> 李审批
+node scripts/import-log.js --vault-logs <vaultBatchId> 张编辑  # 脱敏
+
+# 执行保险箱批次回放
+node scripts/import-log.js --vault-playback <vaultBatchId> 李审批 --notes "季度审计回放"
+
+# 查看和编辑备注
+node scripts/import-log.js --vault-notes <vaultBatchId> 李审批
+node scripts/import-log.js --vault-update-notes <vaultBatchId> 李审批 "2026Q2 审计完成，无异常"
+
+# 查看操作轨迹
+node scripts/import-log.js --vault-trail <vaultBatchId> 李审批
+
+# 导出审计包
+node scripts/import-log.js --vault-export <vaultBatchId> 李审批 > audit-package.json
+
+# 导入审计包
+node scripts/import-log.js --vault-import audit-package.json 李审批
+node scripts/import-log.js --vault-import audit-package.json 李审批 --strategy skip
+node scripts/import-log.js --vault-import audit-package.json 李审批 --strategy force
+
+# 查看审计包导入/导出记录
+node scripts/import-log.js --vault-import-list
+```
+
+**6.9.7 重启一致性保证**
+
+- `vaultBatches[]`：所有保险箱批次
+- `vaultAccessLogs[]`：所有访问日志
+- `vaultRedactionRules[]`：脱敏规则
+- `vaultImportPackages[]`：所有审计包导入导出记录
+- 全部持久化到 `data/db.json`，使用原子写入（`.tmp` → rename）
+- 重启后重新读取，权限判断结果、脱敏结果、冲突日志完全一致
+
 **6.8.1 批次实体（每次导入都落库）**
 
 - **创建批次**：`POST /api/batch-trace/import`，每次导入生成独立批次实体，落库以下信息：
@@ -368,6 +505,21 @@ POST   /api/batch-trace/batches/:batchId/reimport    # 冲突重导入（strateg
 GET    /api/batch-trace/batches/:batchId/export-audit # 导出批次审计摘要（?viewer=xx）
 POST   /api/batch-trace/link-playback                # 关联回放到批次
 GET    /api/batch-trace/duplicate-check              # 重复导入检测（?sourceDigest=xx&contentFingerprint=xx）
+
+# 回放授权保险箱
+POST   /api/vault/create                             # 创建保险箱批次（batchId+operator，仅审批员）
+GET    /api/vault/batches                            # 保险箱批次列表（?ownerId=xx&status=xx&viewer=xx 控制脱敏）
+GET    /api/vault/batches/:vaultBatchId              # 保险箱批次详情（?viewer=xx 控制脱敏）
+GET    /api/vault/batches/:vaultBatchId/logs         # 保险箱批次日志（?viewer=xx 控制脱敏）
+GET    /api/vault/batches/:vaultBatchId/playbacks    # 保险箱批次回放记录（?viewer=xx 控制脱敏）
+POST   /api/vault/batches/:vaultBatchId/playback     # 执行保险箱批次回放（operator+notes）
+GET    /api/vault/batches/:vaultBatchId/notes        # 查看保险箱备注（?viewer=xx 控制脱敏）
+PUT    /api/vault/batches/:vaultBatchId/notes        # 更新保险箱备注（仅 owner）
+GET    /api/vault/batches/:vaultBatchId/trail        # 查看操作轨迹（仅 owner/审批员）
+GET    /api/vault/batches/:vaultBatchId/export       # 导出保险箱审计包（仅 owner/审批员）
+POST   /api/vault/import                             # 导入保险箱审计包（operator+conflictStrategy）
+GET    /api/vault/imported-packages                  # 审计包导入导出记录（?importer=xx&status=xx&fingerprint=xx）
+GET    /api/vault/redaction-rules                    # 查看脱敏规则（仅审批员）
 ```
 
 快照恢复的响应说明：
@@ -403,6 +555,7 @@ node test/delivery.js
 - **快照读取硬边界**：未传 `operator` 或非草稿 owner 时，正文、理由、创建人全部脱敏（`_redacted: true`）；审批员 canViewAllDrafts 可跨用户查看
 - **重启一致性**：导入批次（importedLogs）、回放记录（playbackRecords）、批次追溯（importBatches）持久化至 db.json，重启后读取结果与权限判断完全一致
 - **批次追溯中心**：每次导入生成批次实体（含导入人、时间、来源文件摘要、记录数量、指纹、冲突/失败明细），后续每条回放可精确挂到对应批次；重复导入按策略拒绝/跳过/合并，不静默覆盖、不串线；批次列表/详情/筛选回放入口完整；支持导出批次级审计摘要；非 owner 只看脱敏元数据；重启后批次、回放映射和冲突日志保持一致
+- **回放授权保险箱**：owner 可按批次看到完整回放、日志 ID、备注和操作轨迹；非 owner 只能拿到脱敏后的摘要、状态和最小批次元数据，不能借查询组合把明细漏出来；批次归属、权限判断、脱敏规则和冲突日志都落到持久层，服务重启后结果一致；审计包导出后再导入，重复导入同一批内容时明确提示冲突、保留处理日志，不静默覆盖；测试覆盖 owner/非 owner 读取、带 viewer 查询、重启恢复、导出后再导入和重复导入冲突
 - 权限边界（编辑员不能发布、审批员不能改别人草稿）验证通过
 - 修订日志多维度筛选与 CSV 导出验证通过
 - 前端入口可见性（草稿箱标签页、筛选控件、CSV 导出按钮、冲突警告区域、快照列表、**审计回放标签页及所有子控件**）验证通过
@@ -431,7 +584,8 @@ zyx-00114/
 │   ├── draft.js              # 草稿箱：保存、读取、更新、删除、冲突检测
 │   ├── auth.js               # 权限模块：角色定义、权限校验
 │   ├── audit-playback.js     # 审计回放：日志独立导入、冲突检测、重导入、只读回放
-│   └── batch-trace.js        # 批次追溯中心：批次实体、指纹、冲突策略、审计摘要导出
+│   ├── batch-trace.js        # 批次追溯中心：批次实体、指纹、冲突策略、审计摘要导出
+│   └── playback-vault.js     # 回放授权保险箱：权限硬边界、脱敏规则、审计包导出导入、操作轨迹
 ├── routes/
 │   └── api.js                # RESTful API
 ├── public/                   # 前端（纯静态）

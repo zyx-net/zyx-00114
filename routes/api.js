@@ -8,6 +8,7 @@ const draftSvc = require('../lib/draft');
 const authSvc = require('../lib/auth');
 const auditSvc = require('../lib/audit-playback');
 const batchSvc = require('../lib/batch-trace');
+const vaultSvc = require('../lib/playback-vault');
 const store = require('../lib/store');
 
 router.get('/export', (req, res) => {
@@ -478,6 +479,214 @@ router.get('/batch-trace/duplicate-check', (req, res) => {
     return res.status(400).json({ error: 'INVALID_INPUT', message: '必须提供 sourceDigest 或 contentFingerprint' });
   }
   const result = batchSvc.checkDuplicateImport(sourceDigest || '', contentFingerprint || '');
+  res.json(result);
+});
+
+// ========== 回放授权保险箱模块 ==========
+
+router.post('/vault/create', (req, res) => {
+  const { batchId, operator, notes, redactionRules } = req.body;
+  if (!batchId) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须指定 batchId' });
+  }
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人身份' });
+  }
+  const result = vaultSvc.createVaultBatch(batchId, operator, { notes, redactionRules });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.status(201).json(result);
+});
+
+router.get('/vault/batches', (req, res) => {
+  const { ownerId, status, since, viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const filters = {};
+  if (ownerId) filters.ownerId = ownerId;
+  if (status) filters.status = status;
+  if (since) filters.since = since;
+  const result = vaultSvc.getVaultBatches(filters, viewerParam);
+  res.json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultBatch(req.params.vaultBatchId, viewerParam);
+  if (!result) {
+    return res.status(404).json({ error: 'BATCH_NOT_FOUND', message: '保险箱批次不存在' });
+  }
+  res.json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId/logs', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultLogs(req.params.vaultBatchId, viewerParam);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId/playbacks', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultPlaybacks(req.params.vaultBatchId, viewerParam);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/vault/batches/:vaultBatchId/playback', (req, res) => {
+  const { operator, notes } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人身份' });
+  }
+  const result = vaultSvc.playbackVaultBatch(req.params.vaultBatchId, operator, { notes });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.status(201).json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId/notes', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultNotes(req.params.vaultBatchId, viewerParam);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.put('/vault/batches/:vaultBatchId/notes', (req, res) => {
+  const { operator, notes } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人身份' });
+  }
+  const result = vaultSvc.updateVaultNotes(req.params.vaultBatchId, operator, notes || '');
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId/trail', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultAccessTrail(req.params.vaultBatchId, viewerParam);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/vault/batches/:vaultBatchId/export', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.exportVaultAuditPackage(req.params.vaultBatchId, viewerParam);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') {
+      return res.status(404).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+  res.json({ packageData: result.packageData, filename: result.filename, fingerprint: result.fingerprint });
+});
+
+router.post('/vault/import', (req, res) => {
+  const { packageData, operator, conflictStrategy, sourceBatchStrategy } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人身份' });
+  }
+  if (!packageData) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须提供 packageData' });
+  }
+  const result = vaultSvc.importVaultAuditPackage(packageData, operator, {
+    conflictStrategy: conflictStrategy || 'reject',
+    sourceBatchStrategy: sourceBatchStrategy || 'merge'
+  });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'PACKAGE_TAMPERED' || result.error === 'INVALID_PACKAGE') {
+      return res.status(422).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  if (result.status === 'conflict') {
+    return res.status(409).json(result);
+  }
+  if (result.status === 'skipped') {
+    return res.status(200).json(result);
+  }
+  if (result.status === 'forced') {
+    return res.status(201).json(result);
+  }
+  if (result.conflictCount > 0) {
+    return res.status(202).json({ ...result, message: '部分导入成功，存在冲突记录，请检查详情' });
+  }
+  res.status(201).json(result);
+});
+
+router.get('/vault/imported-packages', (req, res) => {
+  const { importer, type, status, fingerprint } = req.query;
+  const filters = {};
+  if (importer) filters.importer = importer;
+  if (type) filters.type = type;
+  if (status) filters.status = status;
+  if (fingerprint) filters.fingerprint = fingerprint;
+  res.json(vaultSvc.getImportedPackages(filters));
+});
+
+router.get('/vault/redaction-rules', (req, res) => {
+  const { viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  const result = vaultSvc.getVaultRedactionRules(viewerParam);
+  if (result.error) {
+    return res.status(403).json(result);
+  }
   res.json(result);
 });
 
