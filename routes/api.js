@@ -9,6 +9,7 @@ const authSvc = require('../lib/auth');
 const auditSvc = require('../lib/audit-playback');
 const batchSvc = require('../lib/batch-trace');
 const vaultSvc = require('../lib/playback-vault');
+const deskSvc = require('../lib/sensitive-desk');
 const store = require('../lib/store');
 
 router.get('/export', (req, res) => {
@@ -687,6 +688,257 @@ router.get('/vault/redaction-rules', (req, res) => {
   if (result.error) {
     return res.status(403).json(result);
   }
+  res.json(result);
+});
+
+// ========== 敏感审计借阅台模块 ==========
+
+router.get('/sensitive-desk/config', (req, res) => {
+  const config = deskSvc.getDeskConfig();
+  res.json(config);
+});
+
+router.put('/sensitive-desk/config', (req, res) => {
+  const { operator, maxDurationMinutes, defaultDurationMinutes } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人身份' });
+  }
+  const result = deskSvc.updateDeskConfig({ maxDurationMinutes, defaultDurationMinutes }, operator);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/sensitive-desk/apply', (req, res) => {
+  const { targetVaultBatchId, applicant, reason, durationMinutes } = req.body;
+  if (!applicant) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定申请人' });
+  }
+  const result = deskSvc.applyForGrant(targetVaultBatchId, applicant, { reason, durationMinutes });
+  if (result.error) {
+    if (result.error === 'OPERATOR_REQUIRED' || result.error === 'PERMISSION_DENIED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    if (result.error === 'ALREADY_AUTHORIZED') return res.status(422).json(result);
+    return res.status(422).json(result);
+  }
+  res.status(201).json(result);
+});
+
+router.post('/sensitive-desk/:grantId/approve', (req, res) => {
+  const { approver, notes } = req.body;
+  if (!approver) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定审批人' });
+  }
+  const result = deskSvc.approveGrant(req.params.grantId, approver, { notes });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'GRANT_NOT_FOUND') return res.status(404).json(result);
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/sensitive-desk/:grantId/revoke', (req, res) => {
+  const { operator, reason } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定操作人' });
+  }
+  const result = deskSvc.revokeGrant(req.params.grantId, operator, reason);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'GRANT_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/sensitive-desk/:grantId/open-session', (req, res) => {
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须指定用户ID' });
+  }
+  const result = deskSvc.openSession(req.params.grantId, userId);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    if (result.error === 'GRANT_INVALID') return res.status(422).json(result);
+    return res.status(422).json(result);
+  }
+  res.status(201).json(result);
+});
+
+router.get('/sensitive-desk/sessions/:sessionId/validate', (req, res) => {
+  const result = deskSvc.validateSession(req.params.sessionId);
+  if (!result.valid && result.reason === 'SESSION_NOT_FOUND') {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: '会话不存在' });
+  }
+  res.json(result);
+});
+
+router.get('/sensitive-desk/grants', (req, res) => {
+  const { targetVaultBatchId, applicant, approver, status } = req.query;
+  const filters = {};
+  if (targetVaultBatchId) filters.targetVaultBatchId = targetVaultBatchId;
+  if (applicant) filters.applicant = applicant;
+  if (approver) filters.approver = approver;
+  if (status) filters.status = status;
+  res.json(deskSvc.getGrants(filters));
+});
+
+router.get('/sensitive-desk/grants/:grantId', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const result = deskSvc.getGrant(req.params.grantId, viewer);
+  if (!result) return res.status(404).json({ error: 'GRANT_NOT_FOUND', message: '授权单不存在' });
+  res.json(result);
+});
+
+router.get('/sensitive-desk/vault-batches/:vaultBatchId/detail', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const grantId = req.query.grantId || null;
+  if (!viewer) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定查看人' });
+  }
+  const result = deskSvc.getSensitiveDetail(req.params.vaultBatchId, viewer, grantId);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/sensitive-desk/vault-batches/:vaultBatchId/logs', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const grantId = req.query.grantId || null;
+  if (!viewer) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定查看人' });
+  }
+  const result = deskSvc.getSensitiveLogs(req.params.vaultBatchId, viewer, grantId);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/sensitive-desk/vault-batches/:vaultBatchId/playbacks', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const grantId = req.query.grantId || null;
+  if (!viewer) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定查看人' });
+  }
+  const result = deskSvc.getSensitivePlaybacks(req.params.vaultBatchId, viewer, grantId);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/sensitive-desk/vault-batches/:vaultBatchId/notes', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const grantId = req.query.grantId || null;
+  if (!viewer) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定查看人' });
+  }
+  const result = deskSvc.getSensitiveNotes(req.params.vaultBatchId, viewer, grantId);
+  if (result.error) {
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.json(result);
+});
+
+router.get('/sensitive-desk/vault-batches/:vaultBatchId/export', (req, res) => {
+  const viewer = req.query.viewer || req.query.operator || null;
+  const grantId = req.query.grantId || null;
+  if (!viewer) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定导出人' });
+  }
+  const result = deskSvc.exportSensitivePackage(req.params.vaultBatchId, viewer, grantId);
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED') return res.status(403).json(result);
+    if (result.error === 'BATCH_NOT_FOUND') return res.status(404).json(result);
+    return res.status(422).json(result);
+  }
+  res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+  res.json({ packageData: result.packageData, filename: result.filename, fingerprint: result.fingerprint });
+});
+
+router.post('/sensitive-desk/import', (req, res) => {
+  const { packageData, operator, conflictStrategy, sourceBatchStrategy } = req.body;
+  if (!operator) {
+    return res.status(403).json({ error: 'OPERATOR_REQUIRED', message: '必须指定导入操作人身份' });
+  }
+  if (!packageData) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: '必须提供 packageData' });
+  }
+  const result = deskSvc.importSensitivePackage(packageData, operator, {
+    conflictStrategy: conflictStrategy || 'reject',
+    sourceBatchStrategy: sourceBatchStrategy || 'merge'
+  });
+  if (result.error) {
+    if (result.error === 'PERMISSION_DENIED' || result.error === 'OPERATOR_REQUIRED') {
+      return res.status(403).json(result);
+    }
+    if (result.error === 'PACKAGE_TAMPERED' || result.error === 'INVALID_PACKAGE') {
+      return res.status(422).json(result);
+    }
+    return res.status(422).json(result);
+  }
+  if (result.status === 'conflict') {
+    return res.status(409).json(result);
+  }
+  if (result.status === 'skipped') {
+    return res.status(200).json(result);
+  }
+  if (result.status === 'forced') {
+    return res.status(201).json(result);
+  }
+  if (result.conflictCount > 0) {
+    return res.status(202).json({ ...result, message: '部分导入成功，存在冲突记录，请检查详情' });
+  }
+  res.status(201).json(result);
+});
+
+router.get('/sensitive-desk/imported-packages', (req, res) => {
+  const { importer, type, status, fingerprint } = req.query;
+  const filters = {};
+  if (importer) filters.importer = importer;
+  if (type) filters.type = type;
+  if (status) filters.status = status;
+  if (fingerprint) filters.fingerprint = fingerprint;
+  res.json(deskSvc.getImportedPackages(filters));
+});
+
+router.get('/sensitive-desk/access-logs', (req, res) => {
+  const { userId, grantId, action, granted, since, viewer, operator } = req.query;
+  const viewerParam = viewer || operator || null;
+  if (!viewerParam || !authSvc.canApproveAndPublish(viewerParam)) {
+    return res.status(403).json({ error: 'PERMISSION_DENIED', message: '仅审批员可查看访问日志' });
+  }
+  const filters = {};
+  if (userId) filters.userId = userId;
+  if (grantId) filters.grantId = grantId;
+  if (action) filters.action = action;
+  if (granted !== undefined) filters.granted = granted === 'true';
+  if (since) filters.since = since;
+  res.json(deskSvc.getAccessLogs(filters));
+});
+
+router.post('/sensitive-desk/expire-grants', (req, res) => {
+  const { operator } = req.body;
+  if (!operator || !authSvc.canApproveAndPublish(operator)) {
+    return res.status(403).json({ error: 'PERMISSION_DENIED', message: '仅审批员可触发过期回收' });
+  }
+  const result = deskSvc.expireGrants();
   res.json(result);
 });
 

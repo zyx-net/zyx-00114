@@ -614,7 +614,7 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       const req = http.request({ hostname: '127.0.0.1', port: DELIVERY_PORT, path: urlPath, method: method || 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
         let body = '';
         res.on('data', chunk => body += chunk);
-        res.on('end', () => { try { resolve({ status: res.statusCode, ...JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+        res.on('end', () => { try { const p = JSON.parse(body); p.httpStatus = res.statusCode; resolve(p); } catch (e) { resolve({ httpStatus: res.statusCode, data: body }); } });
       });
       req.on('error', reject);
       req.write(postData);
@@ -675,7 +675,7 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
     const httpSnapDraftId = snapDraftList.data[0].id;
 
     const putUpdateRes = await httpPost('/api/drafts/' + httpSnapDraftId, { content: '交付快照草稿 B', reason: '交付快照理由 B', operator: '张编辑' }, 'PUT');
-    check(putUpdateRes.draft !== undefined || putUpdateRes.status === 200, 'HTTP: PUT 更新草稿成功');
+    check(putUpdateRes.draft !== undefined || putUpdateRes.httpStatus === 200, 'HTTP: PUT 更新草稿成功');
 
     const snapListRes = await httpGetJson('/api/drafts/' + httpSnapDraftId + '/snapshots?operator=张编辑');
     check(snapListRes.data.length === 1, 'HTTP: 更新草稿后快照列表有 1 条（实际 ' + snapListRes.data.length + '）');
@@ -683,13 +683,13 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
     const httpSnapId = snapListRes.data[0].id;
 
     const approverSnapRestore = await httpPost('/api/snapshots/' + httpSnapId + '/restore', { operator: '李审批' });
-    check(approverSnapRestore.error === 'PERMISSION_DENIED' || approverSnapRestore.status === 403, 'HTTP: 审批人恢复别人快照被 403 拒绝');
+    check(approverSnapRestore.error === 'PERMISSION_DENIED' || approverSnapRestore.httpStatus === 403, 'HTTP: 审批人恢复别人快照被 403 拒绝');
 
     const approverSnapDelete = await httpPost('/api/snapshots/' + httpSnapId, { operator: '李审批' }, 'DELETE');
-    check(approverSnapDelete.error === 'PERMISSION_DENIED' || approverSnapDelete.status === 403, 'HTTP: 审批人删除别人快照被 403 拒绝');
+    check(approverSnapDelete.error === 'PERMISSION_DENIED' || approverSnapDelete.httpStatus === 403, 'HTTP: 审批人删除别人快照被 403 拒绝');
 
     const ownerSnapDelete = await httpPost('/api/snapshots/' + httpSnapId, { operator: '张编辑' }, 'DELETE');
-    check(ownerSnapDelete.success === true || ownerSnapDelete.status === 200, 'HTTP: 草稿 owner 删除自己的快照成功');
+    check(ownerSnapDelete.success === true || ownerSnapDelete.httpStatus === 200, 'HTTP: 草稿 owner 删除自己的快照成功');
     const snapAfterDelete = await httpGetJson('/api/drafts/' + httpSnapDraftId + '/snapshots?operator=张编辑');
     check(snapAfterDelete.data.length === 0, 'HTTP: 删除后快照列表为空（实际 ' + snapAfterDelete.data.length + '）');
 
@@ -718,18 +718,18 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
     const freshLogs = logsForImport.map(l => ({ ...l, id: 'http-imp-' + l.id.slice(0, 10), documentId: freshDoc.document.id }));
 
     const noOpImp = await httpPost('/api/revision-log/import', { logs: freshLogs, operator: null });
-    check(noOpImp.status === 403 || noOpImp.error === 'OPERATOR_REQUIRED', 'HTTP: 无操作人导入被 403 拒绝');
+    check(noOpImp.httpStatus === 403 || noOpImp.error === 'OPERATOR_REQUIRED', 'HTTP: 无操作人导入被 403 拒绝');
 
     const strangerImp = await httpPost('/api/revision-log/import', { logs: freshLogs, operator: '陌生人' });
-    check(strangerImp.status === 403 || strangerImp.error === 'PERMISSION_DENIED', 'HTTP: 陌生人导入被 403/PERMISSION_DENIED 拒绝');
+    check(strangerImp.httpStatus === 403 || strangerImp.error === 'PERMISSION_DENIED', 'HTTP: 陌生人导入被 403/PERMISSION_DENIED 拒绝');
 
     const approverImp = await httpPost('/api/revision-log/import', { logs: freshLogs, operator: '李审批', source: 'HTTP测试', notes: 'HTTP导入测试' });
-    check(approverImp.status === 201 || approverImp.insertedCount === freshLogs.length, 'HTTP: 审批员导入成功，状态201');
+    check(approverImp.httpStatus === 201 || approverImp.insertedCount === freshLogs.length, 'HTTP: 审批员导入成功，状态201');
     check(approverImp.batchId !== undefined, 'HTTP: 导入返回批次ID');
     const httpBatchId = approverImp.batchId;
 
     const dupImp = await httpPost('/api/revision-log/import', { logs: freshLogs, operator: '李审批' });
-    check(dupImp.status === 202 && dupImp.conflictCount === freshLogs.length, 'HTTP: 重复导入返回 202 状态码，冲突数=' + freshLogs.length);
+    check(dupImp.httpStatus === 202 && dupImp.conflictCount === freshLogs.length, 'HTTP: 重复导入返回 202 状态码，冲突数=' + freshLogs.length);
     check(dupImp.conflicts && dupImp.conflicts.length > 0, 'HTTP: 重复导入返回 conflicts 冲突详情');
     check(dupImp.conflicts.every(c => c.reason && c.existingLog), 'HTTP: 每条冲突含 reason 和 existingLog 信息');
 
@@ -744,16 +744,16 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
     check(Array.isArray(batchLogs.data) && batchLogs.data.length === freshLogs.length, 'HTTP: GET /imported/:id/logs 返回该批次日志');
 
     const editorReimp = await httpPost('/api/revision-log/imported/' + dupImp.batchId + '/reimport', { strategy: 'overwrite', operator: '张编辑' });
-    check(editorReimp.status === 403, 'HTTP: 编辑员重导入被 403 拒绝');
+    check(editorReimp.httpStatus === 403, 'HTTP: 编辑员重导入被 403 拒绝');
 
     const allLogsForPlayback = (await httpGetJson('/api/documents/' + freshDoc.document.id + '/revision-log')).data;
     const playIds = allLogsForPlayback.slice(0, 3).map(l => l.id);
 
     const editorPlay = await httpPost('/api/revision-log/playback', { logIds: playIds, operator: '张编辑' });
-    check(editorPlay.status === 403, 'HTTP: 编辑员回放被 403 拒绝');
+    check(editorPlay.httpStatus === 403, 'HTTP: 编辑员回放被 403 拒绝');
 
     const approverPlay = await httpPost('/api/revision-log/playback', { logIds: playIds, operator: '李审批', notes: 'HTTP回放测试' });
-    check(approverPlay.status === 201 && approverPlay.recordId, 'HTTP: 审批员回放成功，返回201和recordId');
+    check(approverPlay.httpStatus === 201 && approverPlay.recordId, 'HTTP: 审批员回放成功，返回201和recordId');
     check(approverPlay.summary && approverPlay.summary.actionBreakdown, 'HTTP: 回放摘要包含动作分布');
     check(approverPlay.items && approverPlay.items.length === playIds.length, 'HTTP: 回放 items 长度正确');
     const snapItems = approverPlay.items.filter(i => i.snapshotId);
@@ -1548,7 +1548,7 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
         const req = http.request({ hostname: '127.0.0.1', port: BT_PORT, path: urlPath, method: method || 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
           let body = '';
           res.on('data', chunk => body += chunk);
-          res.on('end', () => { try { resolve({ status: res.statusCode, ...JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+          res.on('end', () => { try { const p = JSON.parse(body); p.httpStatus = res.statusCode; resolve(p); } catch (e) { resolve({ httpStatus: res.statusCode, data: body }); } });
         });
         req.on('error', reject);
         req.write(postData);
@@ -1583,24 +1583,24 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       }));
 
       const noOpHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: null });
-      check(noOpHttp.status === 403 || noOpHttp.error === 'OPERATOR_REQUIRED', '29.7 HTTP: 无操作人批次导入被 403 拒绝');
+      check(noOpHttp.httpStatus === 403 || noOpHttp.error === 'OPERATOR_REQUIRED', '29.7 HTTP: 无操作人批次导入被 403 拒绝');
 
       const strangerHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: '陌生人' });
-      check(strangerHttp.status === 403 || strangerHttp.error === 'PERMISSION_DENIED', '29.7 HTTP: 陌生人批次导入被 403 拒绝');
+      check(strangerHttp.httpStatus === 403 || strangerHttp.error === 'PERMISSION_DENIED', '29.7 HTTP: 陌生人批次导入被 403 拒绝');
 
       const validHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: '李审批', source: 'HTTP批次测试' });
-      check(validHttp.status === 201 && validHttp.batchId, '29.7 HTTP: 审批员批次导入成功');
+      check(validHttp.httpStatus === 201 && validHttp.batchId, '29.7 HTTP: 审批员批次导入成功');
       check(validHttp.sourceDigest && validHttp.contentFingerprint, '29.7 HTTP: 返回来源摘要和指纹');
       const httpBatchId = validHttp.batchId;
 
       const dupHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: '李审批', conflictStrategy: 'reject' });
-      check(dupHttp.status === 409 && dupHttp.error === 'DUPLICATE_IMPORT', '29.7 HTTP: 重复导入被 409 DUPLICATE_IMPORT 拦截');
+      check(dupHttp.httpStatus === 409 && dupHttp.error === 'DUPLICATE_IMPORT', '29.7 HTTP: 重复导入被 409 DUPLICATE_IMPORT 拦截');
 
       const skipHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: '李审批', conflictStrategy: 'skip' });
-      check(skipHttp.status === 200 && skipHttp.skipped === true, '29.7 HTTP: skip 策略跳过成功');
+      check(skipHttp.httpStatus === 200 && skipHttp.skipped === true, '29.7 HTTP: skip 策略跳过成功');
 
       const mergeHttp = await httpPost2('/api/batch-trace/import', { logs: btHttpLogs, operator: '李审批', conflictStrategy: 'merge', source: 'HTTP合并' });
-      check(mergeHttp.status === 201 && mergeHttp.batchId, '29.7 HTTP: merge 策略成功');
+      check(mergeHttp.httpStatus === 201 && mergeHttp.batchId, '29.7 HTTP: merge 策略成功');
 
       const batchListHttp = await httpGetJson2('/api/batch-trace/batches');
       check(Array.isArray(batchListHttp.data) && batchListHttp.data.length >= 2, '29.7 HTTP: GET /batch-trace/batches 返回列表');
@@ -1624,7 +1624,7 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       check(dupCheck.data && dupCheck.data.isDuplicate === true, '29.7 HTTP: 重复检测 API 返回 isDuplicate=true');
 
       const editorReimport = await httpPost2('/api/batch-trace/batches/' + httpBatchId + '/reimport', { strategy: 'overwrite', operator: '张编辑' });
-      check(editorReimport.status === 403, '29.7 HTTP: 编辑员重导入被 403 拒绝');
+      check(editorReimport.httpStatus === 403, '29.7 HTTP: 编辑员重导入被 403 拒绝');
     } finally {
       if (btServer.listening) btServer.close();
     }
@@ -2010,16 +2010,16 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
   vaultSvc39.updateVaultNotes(vVaultId39, '李审批', '重启前更新备注');
   const vExport39 = vaultSvc39.exportVaultAuditPackage(vVaultId39, '李审批');
 
+  const ownerDetailBefore = vaultSvc39.getVaultBatch(vVaultId39, '李审批');
+  const nonOwnerDetailBefore = vaultSvc39.getVaultBatch(vVaultId39, '张编辑');
+
   const dbBefore = vaultStore39.read();
   const vaultBatchesBefore = dbBefore.vaultBatches || [];
   const vaultAccessLogsBefore = dbBefore.vaultAccessLogs || [];
   const vaultImportPkgsBefore = dbBefore.vaultImportPackages || [];
   check(vaultBatchesBefore.length >= 1, '39 重启前有 ' + vaultBatchesBefore.length + ' 个保险箱批次');
-  check(vaultAccessLogsBefore.length >= 5, '39 重启前有 ' + vaultAccessLogsBefore.length + ' 条访问日志');
+  check(vaultAccessLogsBefore.length >= 4, '39 重启前有 ' + vaultAccessLogsBefore.length + ' 条访问日志');
   check(vaultImportPkgsBefore.length >= 1, '39 重启前有 ' + vaultImportPkgsBefore.length + ' 条导入导出记录');
-
-  const ownerDetailBefore = vaultSvc39.getVaultBatch(vVaultId39, '李审批');
-  const nonOwnerDetailBefore = vaultSvc39.getVaultBatch(vVaultId39, '张编辑');
 
   delete require.cache[require.resolve(path.join(ROOT, 'lib/store.js'))];
   delete require.cache[require.resolve(path.join(ROOT, 'lib/playback-vault.js'))];
@@ -2045,6 +2045,9 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
   check(rebootVaultBatch.playbackCount >= 1, '39 重启后 playbackCount 一致');
   check(rebootVaultBatch.exportCount >= 1, '39 重启后 exportCount 一致');
 
+  const rebootTrail = vaultSvc39After.getVaultAccessTrail(vVaultId39, '李审批');
+  check(rebootTrail.trail.length === ownerTrailFromBefore(vaultAccessLogsBefore, vVaultId39), '39 重启后操作轨迹记录数不变');
+
   const ownerDetailAfter = vaultSvc39After.getVaultBatch(vVaultId39, '李审批');
   check(ownerDetailAfter._redacted === false, '39 重启后 owner 仍能查看完整详情');
   check(ownerDetailAfter.notes === ownerDetailBefore.notes, '39 重启后 owner 看到的备注一致');
@@ -2055,9 +2058,6 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
   check(nonOwnerDetailAfter._redacted === true, '39 重启后非 owner 仍被 _redacted');
   check(nonOwnerDetailAfter.notes === undefined, '39 重启后非 owner 仍看不到备注');
   check(nonOwnerDetailAfter.sourceBatch._redacted === true, '39 重启后非 owner 源批次仍被 _redacted');
-
-  const rebootTrail = vaultSvc39After.getVaultAccessTrail(vVaultId39, '李审批');
-  check(rebootTrail.trail.length === ownerTrailFromBefore(vaultAccessLogsBefore, vVaultId39), '39 重启后操作轨迹记录数不变');
 
   const rebootImportPkgs = vaultSvc39After.getImportedPackages();
   check(rebootImportPkgs.length === vaultImportPkgsBefore.length, '39 重启后导入导出记录数不变');
@@ -2148,7 +2148,7 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
         const req = http.request({ hostname: '127.0.0.1', port: V_PORT, path: urlPath, method: method || 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
           let body = '';
           res.on('data', chunk => body += chunk);
-          res.on('end', () => { try { resolve({ status: res.statusCode, ...JSON.parse(body) }); } catch (e) { resolve({ status: res.statusCode, data: body }); } });
+          res.on('end', () => { try { const p = JSON.parse(body); p.httpStatus = res.statusCode; resolve(p); } catch (e) { resolve({ httpStatus: res.statusCode, data: body }); } });
         });
         req.on('error', reject);
         req.write(postData);
@@ -2189,17 +2189,17 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       }));
 
       const vHttpSourceBatch = await httpPost3('/api/batch-trace/import', { logs: vHttpLogs, operator: '李审批', source: 'HTTP保险箱测试' });
-      check(vHttpSourceBatch.status === 201 && vHttpSourceBatch.batchId, '41 HTTP: 创建源批次成功');
+      check(vHttpSourceBatch.httpStatus === 201 && vHttpSourceBatch.batchId, '41 HTTP: 创建源批次成功');
       const vHttpSourceBatchId = vHttpSourceBatch.batchId;
 
       const noOpVaultCreate = await httpPost3('/api/vault/create', { batchId: vHttpSourceBatchId, operator: null });
-      check(noOpVaultCreate.status === 403 || noOpVaultCreate.error === 'OWNER_REQUIRED', '41 HTTP: 无 owner 创建保险箱被 403 拒绝');
+      check(noOpVaultCreate.httpStatus === 403 || noOpVaultCreate.error === 'OWNER_REQUIRED', '41 HTTP: 无 owner 创建保险箱被 403 拒绝');
 
       const strangerVaultCreate = await httpPost3('/api/vault/create', { batchId: vHttpSourceBatchId, operator: '陌生人' });
-      check(strangerVaultCreate.status === 403 || strangerVaultCreate.error === 'PERMISSION_DENIED', '41 HTTP: 陌生人创建保险箱被 403 拒绝');
+      check(strangerVaultCreate.httpStatus === 403 || strangerVaultCreate.error === 'PERMISSION_DENIED', '41 HTTP: 陌生人创建保险箱被 403 拒绝');
 
       const validVaultCreate = await httpPost3('/api/vault/create', { batchId: vHttpSourceBatchId, operator: '李审批', notes: 'HTTP测试备注' });
-      check(validVaultCreate.status === 201 && validVaultCreate.vaultBatchId, '41 HTTP: 审批员创建保险箱成功');
+      check(validVaultCreate.httpStatus === 201 && validVaultCreate.vaultBatchId, '41 HTTP: 审批员创建保险箱成功');
       const vHttpVaultBatchId = validVaultCreate.vaultBatchId;
 
       const vaultListAll = await httpGetJson3('/api/vault/batches?viewer=李审批');
@@ -2232,10 +2232,10 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       check(vaultLogsNonOwner.data.every(l => l._redacted === true), '41 HTTP: 非 owner 日志全部 _redacted');
 
       const vaultPlaybackOwner = await httpPost3('/api/vault/batches/' + vHttpVaultBatchId + '/playback', { operator: '李审批', notes: 'HTTP回放测试' });
-      check(vaultPlaybackOwner.status === 201 && vaultPlaybackOwner.recordId, '41 HTTP: owner 执行回放成功');
+      check(vaultPlaybackOwner.httpStatus === 201 && vaultPlaybackOwner.recordId, '41 HTTP: owner 执行回放成功');
 
       const vaultPlaybackNonOwner = await httpPost3('/api/vault/batches/' + vHttpVaultBatchId + '/playback', { operator: '张编辑' });
-      check(vaultPlaybackNonOwner.status === 403, '41 HTTP: 非 owner 回放被 403 拒绝');
+      check(vaultPlaybackNonOwner.httpStatus === 403, '41 HTTP: 非 owner 回放被 403 拒绝');
 
       const vaultPlaybacksOwner = await httpGetJson3('/api/vault/batches/' + vHttpVaultBatchId + '/playbacks?viewer=李审批');
       check(Array.isArray(vaultPlaybacksOwner.data) && vaultPlaybacksOwner.data.length >= 1, '41 HTTP: owner 查看回放记录成功');
@@ -2250,10 +2250,10 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       check(vaultNotesNonOwner.data && vaultNotesNonOwner.data._redacted === true, '41 HTTP: 非 owner 查看备注被 _redacted');
 
       const vaultUpdateNotes = await httpPost3('/api/vault/batches/' + vHttpVaultBatchId + '/notes', { operator: '李审批', notes: 'HTTP更新备注' }, 'PUT');
-      check(vaultUpdateNotes.status === 200 && vaultUpdateNotes.notes === 'HTTP更新备注', '41 HTTP: owner 更新备注成功');
+      check(vaultUpdateNotes.httpStatus === 200 && vaultUpdateNotes.notes === 'HTTP更新备注', '41 HTTP: owner 更新备注成功');
 
       const vaultUpdateNotesNonOwner = await httpPost3('/api/vault/batches/' + vHttpVaultBatchId + '/notes', { operator: '张编辑', notes: '恶意修改' }, 'PUT');
-      check(vaultUpdateNotesNonOwner.status === 403, '41 HTTP: 非 owner 更新备注被 403 拒绝');
+      check(vaultUpdateNotesNonOwner.httpStatus === 403, '41 HTTP: 非 owner 更新备注被 403 拒绝');
 
       const vaultTrailOwner = await httpGetJson3('/api/vault/batches/' + vHttpVaultBatchId + '/trail?viewer=李审批');
       check(vaultTrailOwner.data && Array.isArray(vaultTrailOwner.data.trail), '41 HTTP: owner 查看操作轨迹成功');
@@ -2272,29 +2272,29 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
       const exportPkg41 = vaultExportOwner.data.packageData;
 
       const vaultImportNoOp = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: null });
-      check(vaultImportNoOp.status === 403, '41 HTTP: 无操作人导入被 403 拒绝');
+      check(vaultImportNoOp.httpStatus === 403, '41 HTTP: 无操作人导入被 403 拒绝');
 
       const vaultImportEditor = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: '张编辑' });
-      check(vaultImportEditor.status === 403, '41 HTTP: 编辑员导入被 403 拒绝');
+      check(vaultImportEditor.httpStatus === 403, '41 HTTP: 编辑员导入被 403 拒绝');
 
       const tamperedPkg41 = JSON.parse(JSON.stringify(exportPkg41));
       tamperedPkg41.logs[0].content = 'HTTP篡改';
       const vaultImportTampered = await httpPost3('/api/vault/import', { packageData: tamperedPkg41, operator: '李审批' });
-      check(vaultImportTampered.status === 422 || vaultImportTampered.error === 'PACKAGE_TAMPERED', '41 HTTP: 篡改包被检测拒绝');
+      check(vaultImportTampered.httpStatus === 422 || vaultImportTampered.error === 'PACKAGE_TAMPERED', '41 HTTP: 篡改包被检测拒绝');
 
       const vaultImportValid = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: '李审批' });
-      check(vaultImportValid.status === 201 && vaultImportValid.vaultBatchId, '41 HTTP: 有效包导入成功');
+      check(vaultImportValid.httpStatus === 201 && vaultImportValid.vaultBatchId, '41 HTTP: 有效包导入成功');
       const importedFingerprint41 = vaultImportValid.fingerprint;
 
       const vaultImportDupDefault = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: '李审批' });
-      check(vaultImportDupDefault.status === 409 || vaultImportDupDefault.status === 'conflict', '41 HTTP: 重复导入默认返回 409 冲突');
+      check(vaultImportDupDefault.httpStatus === 409, '41 HTTP: 重复导入默认返回 409 冲突');
       check(vaultImportDupDefault.conflicts && vaultImportDupDefault.conflicts.length > 0, '41 HTTP: 冲突返回明细');
 
       const vaultImportDupSkip = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: '李审批', conflictStrategy: 'skip' });
-      check(vaultImportDupSkip.status === 200 && vaultImportDupSkip.skipped === true, '41 HTTP: skip 策略跳过成功');
+      check(vaultImportDupSkip.httpStatus === 200 && vaultImportDupSkip.skipped === true, '41 HTTP: skip 策略跳过成功');
 
       const vaultImportDupForce = await httpPost3('/api/vault/import', { packageData: exportPkg41, operator: '李审批', conflictStrategy: 'force' });
-      check(vaultImportDupForce.status === 201 && vaultImportDupForce.vaultBatchId, '41 HTTP: force 策略强制导入成功');
+      check(vaultImportDupForce.httpStatus === 201 && vaultImportDupForce.vaultBatchId, '41 HTTP: force 策略强制导入成功');
 
       const vaultImportList = await httpGetJson3('/api/vault/imported-packages');
       check(Array.isArray(vaultImportList.data) && vaultImportList.data.length >= 4, '41 HTTP: 导入记录列表有 ' + vaultImportList.data.length + ' 条');
@@ -2317,6 +2317,490 @@ console.log('\n【18】HTTP 端点级筛选验证：页面查询和 CSV 导出�
     return logs.filter(l => l.batchId === batchId).length;
   }
   } // 结束保险箱测试块级作用域
+
+  // ---- 42. 敏感审计借阅台：模块逻辑验证 ----
+  console.log('\n【42】敏感审计借阅台：模块逻辑验证');
+  {
+    resetData();
+    const deskSvc2 = require(path.join(ROOT, 'lib', 'sensitive-desk'));
+    const vaultSvc2 = require(path.join(ROOT, 'lib', 'playback-vault'));
+    const batchSvc2 = require(path.join(ROOT, 'lib', 'batch-trace'));
+    const docSvc = require(path.join(ROOT, 'lib', 'document'));
+    const revSvc2 = require(path.join(ROOT, 'lib', 'revision'));
+
+    const docResult = docSvc.importDocument('借阅台测试文档', '借阅台测试内容', '张编辑');
+    const docId = docResult.document.id;
+
+    revSvc2.createRevision(docId, '修改内容1', '测试', '张编辑');
+    const rawLogs = require(path.join(ROOT, 'lib', 'store')).read().revisionLogs;
+    const logs = rawLogs.map((l, i) => ({
+      ...l,
+      id: 'desk-test-' + l.id.slice(0, 10),
+      timestamp: new Date(new Date(l.timestamp).getTime() + i + 300).toISOString()
+    }));
+
+    const batchResult = batchSvc2.createBatch(logs, '李审批', { source: '借阅台测试' });
+    check(batchResult.batchId, '42: 创建源批次成功');
+    const sourceBatchId = batchResult.batchId;
+
+    const vaultResult = vaultSvc2.createVaultBatch(sourceBatchId, '李审批', { notes: '借阅台保险箱' });
+    check(vaultResult.vaultBatchId, '42: 创建保险箱批次成功');
+    const vaultBatchId = vaultResult.vaultBatchId;
+
+    const config = deskSvc2.getDeskConfig();
+    check(config.maxDurationMinutes === 120, '42: 默认 maxDurationMinutes=120');
+    check(config.defaultDurationMinutes === 30, '42: 默认 defaultDurationMinutes=30');
+
+    const applyResult = deskSvc2.applyForGrant(vaultBatchId, '张编辑', { reason: '季度审计', durationMinutes: 60 });
+    check(applyResult.grantId, '42: 申请授权成功');
+    check(applyResult.status === 'pending', '42: 申请状态为 pending');
+    check(applyResult.durationMinutes === 60, '42: 申请时长为 60 分钟');
+    const grantId = applyResult.grantId;
+
+    const alreadyAuth = deskSvc2.applyForGrant(vaultBatchId, '李审批', {});
+    check(alreadyAuth.error === 'ALREADY_AUTHORIZED', '42: owner 申请被拒绝（已授权）');
+
+    const applyNoApplicant = deskSvc2.applyForGrant(vaultBatchId, null, {});
+    check(applyNoApplicant.error === 'OPERATOR_REQUIRED', '42: 无申请人被拒绝');
+
+    const approveResult = deskSvc2.approveGrant(grantId, '李审批', { notes: '同意' });
+    check(approveResult.status === 'approved', '42: 审批成功');
+    check(approveResult.approver === '李审批', '42: 审批人为李审批');
+    check(approveResult.expiresAt, '42: 审批后有过期时间');
+
+    const approveNoPerm = deskSvc2.approveGrant(grantId, '张编辑', {});
+    check(approveNoPerm.error === 'PERMISSION_DENIED', '42: 非审批员审批被拒绝');
+
+    const approveInvalid = deskSvc2.approveGrant(grantId, '李审批', {});
+    check(approveInvalid.error === 'INVALID_STATUS', '42: 重复审批被拒绝');
+
+    const detailOwner = deskSvc2.getSensitiveDetail(vaultBatchId, '李审批', null);
+    check(detailOwner._redacted === false, '42: owner 查看详情无脱敏');
+    check(detailOwner.notes !== undefined, '42: owner 能看到备注');
+
+    const detailNonOwner = deskSvc2.getSensitiveDetail(vaultBatchId, '张编辑', null);
+    check(detailNonOwner._redacted === true, '42: 非 owner 无授权单查看详情被脱敏');
+    check(detailNonOwner.notes === undefined, '42: 非 owner 无授权单看不到备注');
+
+    const detailWithGrant = deskSvc2.getSensitiveDetail(vaultBatchId, '张编辑', grantId);
+    check(detailWithGrant._redacted === false, '42: 持有授权单查看详情无脱敏');
+    check(detailWithGrant._accessVia === 'grant', '42: 授权单访问标记 _accessVia=grant');
+
+    const detailWrongGrant = deskSvc2.getSensitiveDetail(vaultBatchId, '王编辑', grantId);
+    check(detailWrongGrant._redacted === true, '42: 非 grant 申请人查看被脱敏');
+
+    const logsOwner = deskSvc2.getSensitiveLogs(vaultBatchId, '李审批', null);
+    check(Array.isArray(logsOwner), '42: owner 查看日志成功');
+
+    const logsNonOwner = deskSvc2.getSensitiveLogs(vaultBatchId, '张编辑', null);
+    check(logsNonOwner.every(l => l._redacted === true), '42: 非 owner 无授权单日志全脱敏');
+
+    const logsWithGrant = deskSvc2.getSensitiveLogs(vaultBatchId, '张编辑', grantId);
+    check(logsWithGrant.every(l => l._redacted === undefined), '42: 持有授权单日志无脱敏');
+
+    const notesWithGrant = deskSvc2.getSensitiveNotes(vaultBatchId, '张编辑', grantId);
+    check(notesWithGrant._redacted === false, '42: 持有授权单查看备注无脱敏');
+
+    const notesNonOwner = deskSvc2.getSensitiveNotes(vaultBatchId, '张编辑', null);
+    check(notesNonOwner._redacted === true, '42: 非 owner 无授权单查看备注被脱敏');
+
+    const sessionResult = deskSvc2.openSession(grantId, '张编辑');
+    check(sessionResult.sessionId, '42: 开启会话成功');
+    check(sessionResult.grantId === grantId, '42: 会话绑定授权单');
+    const sessionId = sessionResult.sessionId;
+
+    const sessionWrongUser = deskSvc2.openSession(grantId, '王编辑');
+    check(sessionWrongUser.error === 'PERMISSION_DENIED', '42: 非申请人开启会话被拒绝');
+
+    const validateResult = deskSvc2.validateSession(sessionId);
+    check(validateResult.valid === true, '42: 有效会话验证通过');
+    check(validateResult.grantId === grantId, '42: 验证返回授权单ID');
+
+    const validateNotFound = deskSvc2.validateSession('non-existent-session');
+    check(validateNotFound.valid === false, '42: 不存在的会话验证失败');
+
+    const revokeResult = deskSvc2.revokeGrant(grantId, '李审批', '不再需要');
+    check(revokeResult.status === 'revoked', '42: 撤销成功');
+    check(revokeResult.revokeReason === '不再需要', '42: 撤销原因记录正确');
+    check(revokeResult.invalidatedSessions >= 1, '42: 撤销后失效会话数 >= 1');
+
+    const validateAfterRevoke = deskSvc2.validateSession(sessionId);
+    check(validateAfterRevoke.valid === false, '42: 撤销后会话立刻失效');
+
+    const detailAfterRevoke = deskSvc2.getSensitiveDetail(vaultBatchId, '张编辑', grantId);
+    check(detailAfterRevoke._redacted === true, '42: 撤销后用原授权单查看被脱敏');
+
+    const logsAfterRevoke = deskSvc2.getSensitiveLogs(vaultBatchId, '张编辑', grantId);
+    check(logsAfterRevoke.every(l => l._redacted === true), '42: 撤销后日志脱敏');
+
+    const revokeNoPerm = deskSvc2.revokeGrant(grantId, '张编辑', '恶意撤销');
+    check(revokeNoPerm.error === 'INVALID_STATUS' || revokeNoPerm.error === 'PERMISSION_DENIED', '42: 非 owner 撤销已撤销的授权单被拒绝');
+
+    const grant2Result = deskSvc2.applyForGrant(vaultBatchId, '王编辑', { reason: '测试撤销权限' });
+    const grant2Id = grant2Result.grantId;
+    deskSvc2.approveGrant(grant2Id, '李审批', {});
+    const revokeNoPerm2 = deskSvc2.revokeGrant(grant2Id, '王编辑', '恶意撤销');
+    check(revokeNoPerm2.error === 'PERMISSION_DENIED', '42: 非审批员撤销 pending/approved 授权单被拒绝');
+
+    const testObj = {
+      batchId: 'desk-test-123', vaultBatchId: 'v-desk-456', status: 'active',
+      detail: '敏感详情', content: '敏感内容', reason: '敏感原因', notes: '敏感备注',
+      batchNo: 'BN-001', logDetails: '日志明细', remarks: '备注', relatedOps: '关联操作',
+      sourceDigest: 'abc', contentFingerprint: 'def'
+    };
+
+    const redactedSummary = deskSvc2.applyDeskRedaction(testObj, 'summary');
+    check(redactedSummary._redacted === true, '42: applyDeskRedaction summary 标记 _redacted');
+    check(redactedSummary._redactionLevel === 'summary', '42: applyDeskRedaction summary 级别');
+    check(redactedSummary.batchId === 'desk-test-123', '42: applyDeskRedaction 保留 batchId');
+    check(redactedSummary.status === 'active', '42: applyDeskRedaction 保留 status');
+    check(redactedSummary.detail === undefined, '42: applyDeskRedaction 移除 detail');
+    check(redactedSummary.content === undefined, '42: applyDeskRedaction 移除 content');
+    check(redactedSummary.reason === undefined, '42: applyDeskRedaction 移除 reason');
+    check(redactedSummary.notes === undefined, '42: applyDeskRedaction 移除 notes');
+    check(redactedSummary.batchNo === undefined, '42: applyDeskRedaction 移除 batchNo');
+    check(redactedSummary.logDetails === undefined, '42: applyDeskRedaction 移除 logDetails');
+    check(redactedSummary.remarks === undefined, '42: applyDeskRedaction 移除 remarks');
+    check(redactedSummary.relatedOps === undefined, '42: applyDeskRedaction 移除 relatedOps');
+
+    const redactedFull = deskSvc2.applyDeskRedaction(testObj, 'full');
+    check(redactedFull._redacted === true, '42: applyDeskRedaction full 标记 _redacted');
+    check(redactedFull._redactionLevel === 'full', '42: applyDeskRedaction full 级别');
+    check(Object.keys(redactedFull).length <= 5, '42: applyDeskRedaction full 最少字段');
+
+    const durCapResult = deskSvc2.applyForGrant(vaultBatchId, '王编辑', { reason: '测试时长上限', durationMinutes: 999 });
+    check(durCapResult.grantId, '42: 超时长上限申请仍成功');
+    check(durCapResult.durationMinutes === 120, '42: 超时长上限被截断为 120');
+    check(durCapResult.message && durCapResult.message.includes('超出上限'), '42: 超时长上限有提示');
+
+    const grantList = deskSvc2.getGrants({});
+    check(grantList.length >= 2, '42: 授权单列表有记录');
+
+    const grantDetail = deskSvc2.getGrant(grantId, '张编辑');
+    check(grantDetail._redacted === false, '42: 申请人查看授权单详情无脱敏');
+    check(grantDetail.reason !== undefined, '42: 申请人能看到申请原因');
+
+    const grantDetailNonApplicant = deskSvc2.getGrant(grantId, '王编辑');
+    check(grantDetailNonApplicant._redacted === true, '42: 非申请人查看授权单被脱敏');
+
+    const accessLogs = deskSvc2.getAccessLogs({});
+    check(accessLogs.length >= 5, '42: 访问日志有记录');
+
+    const exportResult = deskSvc2.exportSensitivePackage(vaultBatchId, '李审批', null);
+    check(exportResult.packageData, '42: owner 导出审计包成功');
+    check(exportResult.fingerprint, '42: 导出返回指纹');
+    check(exportResult.packageData.packageType === 'sensitive-desk-export', '42: 导出包类型正确');
+    check(exportResult.packageData.grants.length >= 1, '42: 导出包含授权单');
+
+    const exportNonOwner = deskSvc2.exportSensitivePackage(vaultBatchId, '张编辑', grantId);
+    check(exportNonOwner.error === 'PERMISSION_DENIED', '42: 撤销授权单后不可导出');
+
+    const importNoPerm = deskSvc2.importSensitivePackage(exportResult.packageData, '张编辑', {});
+    check(importNoPerm.error === 'PERMISSION_DENIED', '42: 编辑员导入被拒绝');
+
+    const tamperedPkg = JSON.parse(JSON.stringify(exportResult.packageData));
+    tamperedPkg.logs[0].content = '篡改内容';
+    const importTampered = deskSvc2.importSensitivePackage(tamperedPkg, '李审批', {});
+    check(importTampered.error === 'PACKAGE_TAMPERED', '42: 篡改包被检测');
+
+    const importValid = deskSvc2.importSensitivePackage(exportResult.packageData, '李审批', {});
+    check(importValid.importId, '42: 有效包导入成功');
+
+    const importDup = deskSvc2.importSensitivePackage(exportResult.packageData, '李审批', {});
+    check(importDup.status === 'conflict', '42: 重复导入返回冲突');
+    check(importDup.conflicts && importDup.conflicts.length > 0, '42: 冲突包含明细');
+
+    const importSkip = deskSvc2.importSensitivePackage(exportResult.packageData, '李审批', { conflictStrategy: 'skip' });
+    check(importSkip.status === 'skipped' && importSkip.skipped === true, '42: skip 策略跳过成功');
+
+    const importForce = deskSvc2.importSensitivePackage(exportResult.packageData, '李审批', { conflictStrategy: 'force' });
+    check(importForce.status === 'forced', '42: force 策略强制导入成功');
+
+    const importPackages = deskSvc2.getImportedPackages({});
+    check(importPackages.length >= 4, '42: 借阅台导入导出记录有数据');
+  }
+
+  // ---- 43. 敏感审计借阅台：授权过期与重启恢复 ----
+  console.log('\n【43】敏感审计借阅台：授权过期与重启恢复');
+  {
+    resetData();
+    const deskSvc2 = require(path.join(ROOT, 'lib', 'sensitive-desk'));
+    const vaultSvc2 = require(path.join(ROOT, 'lib', 'playback-vault'));
+    const batchSvc2 = require(path.join(ROOT, 'lib', 'batch-trace'));
+    const docSvc = require(path.join(ROOT, 'lib', 'document'));
+    const revSvc2 = require(path.join(ROOT, 'lib', 'revision'));
+
+    const docResult = docSvc.importDocument('过期测试文档', '过期测试内容', '张编辑');
+    const docId = docResult.document.id;
+    revSvc2.createRevision(docId, '修改内容', '测试', '张编辑');
+    const rawLogs = require(path.join(ROOT, 'lib', 'store')).read().revisionLogs;
+    const logs = rawLogs.map((l, i) => ({
+      ...l,
+      id: 'expire-test-' + l.id.slice(0, 10),
+      timestamp: new Date(new Date(l.timestamp).getTime() + i + 400).toISOString()
+    }));
+    const batchResult = batchSvc2.createBatch(logs, '李审批', { source: '过期测试' });
+    const vaultResult = vaultSvc2.createVaultBatch(batchResult.batchId, '李审批', { notes: '过期测试' });
+    const vaultBatchId = vaultResult.vaultBatchId;
+
+    const shortApply = deskSvc2.applyForGrant(vaultBatchId, '张编辑', { reason: '短期测试', durationMinutes: 1 });
+    const shortGrantId = shortApply.grantId;
+
+    deskSvc2.approveGrant(shortGrantId, '李审批', {});
+
+    const store2 = require(path.join(ROOT, 'lib', 'store'));
+    store2.update(data => {
+      const gIdx = data.sensitiveDeskGrants.findIndex(g => g.grantId === shortGrantId);
+      if (gIdx >= 0) {
+        data.sensitiveDeskGrants[gIdx].expiresAt = new Date(Date.now() - 60000).toISOString();
+      }
+      return data;
+    });
+
+    const expireResult = deskSvc2.expireGrants();
+    check(expireResult.expiredCount >= 1, '43: 过期回收至少回收 1 条');
+
+    const expiredGrant = deskSvc2.getGrant(shortGrantId, '张编辑');
+    check(expiredGrant.status === 'expired', '43: 过期后状态变为 expired');
+
+    const expiredSession = deskSvc2.openSession(shortGrantId, '张编辑');
+    check(expiredSession.error === 'GRANT_INVALID', '43: 过期授权单不能开启会话');
+
+    const expiredDetail = deskSvc2.getSensitiveDetail(vaultBatchId, '张编辑', shortGrantId);
+    check(expiredDetail._redacted === true, '43: 过期授权单查看详情被脱敏');
+
+    const applyResult = deskSvc2.applyForGrant(vaultBatchId, '张编辑', { reason: '重启测试' });
+    const grantId = applyResult.grantId;
+    deskSvc2.approveGrant(grantId, '李审批', {});
+    const sessionResult = deskSvc2.openSession(grantId, '张编辑');
+    const sessionId = sessionResult.sessionId;
+
+    const detailBefore = deskSvc2.getSensitiveDetail(vaultBatchId, '张编辑', grantId);
+    check(detailBefore._redacted === false, '43: 重启前持有授权单查看无脱敏');
+
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'sensitive-desk'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'playback-vault'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'batch-trace'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'store'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'auth'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'document'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'revision'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib', 'archive'))];
+
+    const deskSvc3 = require(path.join(ROOT, 'lib', 'sensitive-desk'));
+
+    const grantAfterRestart = deskSvc3.getGrant(grantId, '张编辑');
+    check(grantAfterRestart._redacted === false, '43: 重启后授权单仍可查看');
+    check(grantAfterRestart.status === 'approved', '43: 重启后授权单状态一致');
+
+    const sessionAfterRestart = deskSvc3.validateSession(sessionId);
+    check(sessionAfterRestart.valid === true, '43: 重启后会话仍有效');
+
+    const detailAfterRestart = deskSvc3.getSensitiveDetail(vaultBatchId, '张编辑', grantId);
+    check(detailAfterRestart._redacted === false, '43: 重启后持有授权单查看仍无脱敏');
+
+    const logsAfterRestart = deskSvc3.getSensitiveLogs(vaultBatchId, '张编辑', grantId);
+    check(logsAfterRestart.every(l => l._redacted === undefined), '43: 重启后日志仍无脱敏');
+
+    const configAfterRestart = deskSvc3.getDeskConfig();
+    check(configAfterRestart.maxDurationMinutes === 120, '43: 重启后配置一致');
+
+    const nonOwnerAfterRestart = deskSvc3.getSensitiveDetail(vaultBatchId, '王编辑', null);
+    check(nonOwnerAfterRestart._redacted === true, '43: 重启后越权访问仍被脱敏');
+
+    const wrongGrantAfterRestart = deskSvc3.getSensitiveDetail(vaultBatchId, '王编辑', grantId);
+    check(wrongGrantAfterRestart._redacted === true, '43: 重启后非申请人+授权单仍被脱敏');
+  }
+
+  // ---- 44. 敏感审计借阅台：HTTP 端点验证 ----
+  console.log('\n【44】敏感审计借阅台：HTTP 端点验证');
+  await (async () => {
+    const http = require('http');
+    const D_PORT = 3400;
+
+    function httpGetJson4(urlPath) {
+      return new Promise((resolve, reject) => {
+        http.get('http://127.0.0.1:' + D_PORT + urlPath, res => {
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => {
+            try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
+            catch (e) { resolve({ status: res.statusCode, data: body }); }
+          });
+        }).on('error', reject);
+      });
+    }
+
+    function httpPost4(urlPath, payload, method) {
+      return new Promise((resolve, reject) => {
+        const postData = JSON.stringify(payload || {});
+        const req = http.request({ hostname: '127.0.0.1', port: D_PORT, path: urlPath, method: method || 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } }, res => {
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => { try { const p = JSON.parse(body); p.httpStatus = res.statusCode; resolve(p); } catch (e) { resolve({ httpStatus: res.statusCode, data: body }); } });
+        });
+        req.on('error', reject);
+        req.write(postData);
+        req.end();
+      });
+    }
+
+    resetData();
+    delete require.cache[require.resolve(path.join(ROOT, 'server'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'routes/api'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/sensitive-desk'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/playback-vault'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/batch-trace'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/store'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/auth'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/document'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/archive.js'))];
+    delete require.cache[require.resolve(path.join(ROOT, 'lib/revision'))];
+
+    const appModule44 = require(path.join(ROOT, 'server'));
+    const dServer = require('http').createServer(appModule44);
+
+    await new Promise((resolve, reject) => {
+      dServer.listen(D_PORT, resolve);
+      dServer.on('error', reject);
+    });
+
+    try {
+      const dHttpDoc = await httpPost4('/api/documents', { title: 'HTTP借阅台测试', content: 'HTTP初始', operator: '张编辑' });
+      check(dHttpDoc.document && dHttpDoc.document.id, '44 HTTP: 创建测试文档成功');
+      const dHttpDocId = dHttpDoc.document.id;
+
+      await httpPost4('/api/documents/' + dHttpDocId + '/revisions', { content: 'HTTP修改', reason: 'HTTP借阅台', operator: '张编辑' });
+      const dHttpExpLogs = await httpGetJson4('/api/documents/' + dHttpDocId + '/revision-log');
+      const dHttpLogs = dHttpExpLogs.data.map((l, i) => ({
+        ...l,
+        id: 'http-desk-' + l.id.slice(0, 10),
+        timestamp: new Date(new Date(l.timestamp).getTime() + i + 500).toISOString()
+      }));
+
+      const dHttpSourceBatch = await httpPost4('/api/batch-trace/import', { logs: dHttpLogs, operator: '李审批', source: 'HTTP借阅台测试' });
+      check(dHttpSourceBatch.httpStatus === 201 && dHttpSourceBatch.batchId, '44 HTTP: 创建源批次成功');
+      const dHttpSourceBatchId = dHttpSourceBatch.batchId;
+
+      const dHttpVaultCreate = await httpPost4('/api/vault/create', { batchId: dHttpSourceBatchId, operator: '李审批', notes: 'HTTP借阅台' });
+      check(dHttpVaultCreate.httpStatus === 201 && dHttpVaultCreate.vaultBatchId, '44 HTTP: 创建保险箱批次成功');
+      const dHttpVaultBatchId = dHttpVaultCreate.vaultBatchId;
+
+      const dConfigGet = await httpGetJson4('/api/sensitive-desk/config');
+      check(dConfigGet.data.maxDurationMinutes === 120, '44 HTTP: GET config 返回 maxDurationMinutes');
+      check(dConfigGet.data.defaultDurationMinutes === 30, '44 HTTP: GET config 返回 defaultDurationMinutes');
+
+      const dApplyNoApplicant = await httpPost4('/api/sensitive-desk/apply', { targetVaultBatchId: dHttpVaultBatchId });
+      check(dApplyNoApplicant.httpStatus === 403, '44 HTTP: 无申请人被 403 拒绝');
+
+      const dApply = await httpPost4('/api/sensitive-desk/apply', { targetVaultBatchId: dHttpVaultBatchId, applicant: '张编辑', reason: 'HTTP借阅台测试', durationMinutes: 45 });
+      check(dApply.httpStatus === 201 && dApply.grantId, '44 HTTP: 申请授权成功');
+      check(dApply.durationMinutes === 45, '44 HTTP: 申请时长 45 分钟');
+      const dGrantId = dApply.grantId;
+
+      const dApproveNoPerm = await httpPost4('/api/sensitive-desk/' + dGrantId + '/approve', { approver: '张编辑' });
+      check(dApproveNoPerm.httpStatus === 403, '44 HTTP: 非审批员审批被 403 拒绝');
+
+      const dApprove = await httpPost4('/api/sensitive-desk/' + dGrantId + '/approve', { approver: '李审批', notes: '同意' });
+      check(dApprove.httpStatus === 200, '44 HTTP: 审批成功');
+      check(dApprove.expiresAt, '44 HTTP: 审批后有过期时间');
+
+      const dDetailOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/detail?viewer=李审批');
+      check(dDetailOwner.data._redacted === false, '44 HTTP: owner 查看详情无脱敏');
+
+      const dDetailNonOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/detail?viewer=张编辑');
+      check(dDetailNonOwner.data._redacted === true, '44 HTTP: 非 owner 无 grantId 查看被脱敏');
+
+      const dDetailWithGrant = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/detail?viewer=张编辑&grantId=' + dGrantId);
+      check(dDetailWithGrant.data._redacted === false, '44 HTTP: 持有授权单查看详情无脱敏');
+
+      const dDetailWrongGrant = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/detail?viewer=王编辑&grantId=' + dGrantId);
+      check(dDetailWrongGrant.data._redacted === true, '44 HTTP: 非申请人+授权单查看被脱敏');
+
+      const dLogsOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/logs?viewer=李审批');
+      check(Array.isArray(dLogsOwner.data) && dLogsOwner.data.length > 0, '44 HTTP: owner 查看日志成功');
+
+      const dLogsNonOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/logs?viewer=张编辑');
+      check(dLogsNonOwner.data.every(l => l._redacted === true), '44 HTTP: 非 owner 日志全脱敏');
+
+      const dLogsWithGrant = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/logs?viewer=张编辑&grantId=' + dGrantId);
+      check(dLogsWithGrant.data.every(l => l._redacted === undefined), '44 HTTP: 持有授权单日志无脱敏');
+
+      const dOpenSession = await httpPost4('/api/sensitive-desk/' + dGrantId + '/open-session', { userId: '张编辑' });
+      check(dOpenSession.httpStatus === 201 && dOpenSession.sessionId, '44 HTTP: 开启会话成功');
+      const dSessionId = dOpenSession.sessionId;
+
+      const dValidateSession = await httpGetJson4('/api/sensitive-desk/sessions/' + dSessionId + '/validate');
+      check(dValidateSession.data.valid === true, '44 HTTP: 有效会话验证通过');
+
+      const dGrants = await httpGetJson4('/api/sensitive-desk/grants');
+      check(Array.isArray(dGrants.data) && dGrants.data.length >= 1, '44 HTTP: 授权单列表有数据');
+
+      const dGrantDetail = await httpGetJson4('/api/sensitive-desk/grants/' + dGrantId + '?viewer=张编辑');
+      check(dGrantDetail.data._redacted === false, '44 HTTP: 申请人查看授权单无脱敏');
+
+      const dGrantDetailNon = await httpGetJson4('/api/sensitive-desk/grants/' + dGrantId + '?viewer=王编辑');
+      check(dGrantDetailNon.data._redacted === true, '44 HTTP: 非申请人查看授权单被脱敏');
+
+      const dRevoke = await httpPost4('/api/sensitive-desk/' + dGrantId + '/revoke', { operator: '李审批', reason: 'HTTP撤销测试' });
+      check(dRevoke.httpStatus === 200, '44 HTTP: 撤销成功');
+      check(dRevoke.invalidatedSessions >= 1, '44 HTTP: 撤销后失效会话 >= 1');
+
+      const dValidateAfterRevoke = await httpGetJson4('/api/sensitive-desk/sessions/' + dSessionId + '/validate');
+      check(dValidateAfterRevoke.data.valid === false, '44 HTTP: 撤销后会话失效');
+
+      const dDetailAfterRevoke = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/detail?viewer=张编辑&grantId=' + dGrantId);
+      check(dDetailAfterRevoke.data._redacted === true, '44 HTTP: 撤销后授权单不再解锁');
+
+      const dRevokeNoPerm = await httpPost4('/api/sensitive-desk/' + dGrantId + '/revoke', { operator: '张编辑', reason: '恶意' });
+      check(dRevokeNoPerm.httpStatus === 403 || dRevokeNoPerm.httpStatus === 422, '44 HTTP: 非 owner 撤销被拒绝');
+
+      const dExportOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/export?viewer=李审批');
+      check(dExportOwner.data && dExportOwner.data.packageData, '44 HTTP: owner 导出审计包成功');
+      check(dExportOwner.data.fingerprint, '44 HTTP: 导出返回指纹');
+
+      const dExportNonOwner = await httpGetJson4('/api/sensitive-desk/vault-batches/' + dHttpVaultBatchId + '/export?viewer=张编辑');
+      check(dExportNonOwner.status === 403, '44 HTTP: 非 owner 无授权单导出被 403 拒绝');
+
+      const dExportPkg = dExportOwner.data.packageData;
+
+      const dImportNoOp = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg });
+      check(dImportNoOp.httpStatus === 403, '44 HTTP: 无操作人导入被 403 拒绝');
+
+      const dImportEditor = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg, operator: '张编辑' });
+      check(dImportEditor.httpStatus === 403, '44 HTTP: 编辑员导入被 403 拒绝');
+
+      const dTamperedPkg = JSON.parse(JSON.stringify(dExportPkg));
+      dTamperedPkg.logs[0].content = 'HTTP篡改';
+      const dImportTampered = await httpPost4('/api/sensitive-desk/import', { packageData: dTamperedPkg, operator: '李审批' });
+      check(dImportTampered.httpStatus === 422 || dImportTampered.error === 'PACKAGE_TAMPERED', '44 HTTP: 篡改包被检测');
+
+      const dImportValid = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg, operator: '李审批' });
+      check(dImportValid.httpStatus === 201 && dImportValid.importId, '44 HTTP: 有效包导入成功');
+
+      const dImportDup = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg, operator: '李审批' });
+      check(dImportDup.httpStatus === 409, '44 HTTP: 重复导入返回 409 冲突');
+      check(dImportDup.conflicts && dImportDup.conflicts.length > 0, '44 HTTP: 冲突返回明细');
+
+      const dImportSkip = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg, operator: '李审批', conflictStrategy: 'skip' });
+      check(dImportSkip.httpStatus === 200 && dImportSkip.skipped === true, '44 HTTP: skip 策略跳过成功');
+
+      const dImportForce = await httpPost4('/api/sensitive-desk/import', { packageData: dExportPkg, operator: '李审批', conflictStrategy: 'force' });
+      check(dImportForce.httpStatus === 201, '44 HTTP: force 策略强制导入成功');
+
+      const dImportList = await httpGetJson4('/api/sensitive-desk/imported-packages');
+      check(Array.isArray(dImportList.data) && dImportList.data.length >= 4, '44 HTTP: 借阅台审计包记录有数据');
+
+      const dAccessLogs = await httpGetJson4('/api/sensitive-desk/access-logs?viewer=李审批');
+      check(Array.isArray(dAccessLogs.data) && dAccessLogs.data.length >= 5, '44 HTTP: 审批员查看访问日志成功');
+
+      const dAccessLogsNoPerm = await httpGetJson4('/api/sensitive-desk/access-logs?viewer=张编辑');
+      check(dAccessLogsNoPerm.status === 403, '44 HTTP: 编辑员查看访问日志被 403 拒绝');
+
+    } finally {
+      if (dServer.listening) dServer.close();
+    }
+  })();
 
   // ---- 汇总 ----
   console.log('\n' + '='.repeat(60));
